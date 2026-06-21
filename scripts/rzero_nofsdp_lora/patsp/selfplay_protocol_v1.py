@@ -123,6 +123,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--challenger_lora", default=None)
     p.add_argument("--solver_lora", default=None)
 
+    # Full-parameter checkpoints for R-Zero route.
+    p.add_argument("--challenger_model", default=None)
+    p.add_argument("--solver_model", default=None)
+    p.add_argument(
+        "--full_param",
+        action="store_true",
+        help="Use full-parameter checkpoints instead of LoRA adapters for R-Zero.",
+    )
+
     p.add_argument("--max_tokens", type=int, default=512)
     p.add_argument("--temperature", type=float, default=0.8)
     p.add_argument("--top_p", type=float, default=0.95)
@@ -136,6 +145,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     p.add_argument("--train_epochs", type=int, default=int(os.environ.get("RZERO_TRAIN_EPOCHS", "1")))
     p.add_argument("--train_lr", default=os.environ.get("RZERO_TRAIN_LR", "2e-6"))
+    p.add_argument(
+        "--train_backend",
+        choices=["single", "fsdp"],
+        default=os.environ.get("RZERO_TRAIN_BACKEND", "fsdp"),
+        help="Full-param training backend. Use fsdp for two-GPU training.",
+    )
+    p.add_argument(
+        "--fsdp_nproc",
+        default=os.environ.get("RZERO_FSDP_NPROC", "2"),
+        help="Number of FSDP processes/cards for torch.distributed.run.",
+    )
     p.add_argument("--train_max_seq_len", default=os.environ.get("RZERO_TRAIN_MAX_SEQ_LEN", "16384"))
     p.add_argument("--train_max_rows", default=os.environ.get("RZERO_TRAIN_MAX_ROWS", "-1"))
     p.add_argument("--train_min_abs_adv", default=os.environ.get("RZERO_TRAIN_MIN_ABS_ADV", "1e-8"))
@@ -310,6 +330,76 @@ def init_lora_if_needed(
     return str(out)
 
 
+
+def train_role_full_param(
+    *,
+    args: argparse.Namespace,
+    role: str,
+    rollouts_jsonl: Path,
+    model_in: str,
+    model_out: Path,
+    log_path: Path,
+) -> str:
+    """Train one full-parameter role checkpoint.
+
+    In FSDP mode this launches torch.distributed.run. The training script gathers
+    a full state dict and saves a normal HuggingFace checkpoint to model_out.
+    """
+    if args.train_backend == "fsdp":
+        cmd = [
+            sys.executable,
+            "-m",
+            "torch.distributed.run",
+            "--standalone",
+            "--nproc_per_node",
+            str(args.fsdp_nproc),
+            str(SCRIPT_DIR / "train_fsdp_grpo_clip_from_rollouts.py"),
+            "--base_model", str(model_in),
+            "--full_param",
+            "--rollouts_jsonl", str(rollouts_jsonl),
+            "--lora_out", str(model_out),
+            "--objective", args.objective,
+            "--epochs", str(args.train_epochs),
+            "--credit_mode", args.credit_mode,
+            "--max_seq_len", str(args.train_max_seq_len),
+            "--max_rows", str(args.train_max_rows),
+            "--lr", str(args.train_lr),
+            "--min_abs_adv", str(args.train_min_abs_adv),
+        ]
+    else:
+        cmd = [
+            sys.executable,
+            str(SCRIPT_DIR / "train_lora_grpo_clip_from_rollouts.py"),
+            "--base_model", str(model_in),
+            "--full_param",
+            "--rollouts_jsonl", str(rollouts_jsonl),
+            "--lora_out", str(model_out),
+            "--objective", args.objective,
+            "--epochs", str(args.train_epochs),
+            "--credit_mode", args.credit_mode,
+            "--max_seq_len", str(args.train_max_seq_len),
+            "--max_rows", str(args.train_max_rows),
+            "--lr", str(args.train_lr),
+            "--min_abs_adv", str(args.train_min_abs_adv),
+        ]
+
+    try:
+        run_cmd(cmd, log_path=log_path)
+        return str(model_out)
+    except RuntimeError:
+        txt = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        flat_markers = [
+            "No usable rollout rows",
+            "No usable examples",
+            "No optimizer update",
+            "No usable rows",
+        ]
+        if any(m in txt for m in flat_markers):
+            print(f"[protocol] {role}: flat/no-update full-param round -> carry forward {model_in}")
+            return str(model_in)
+        raise
+
+
 def train_role_lora(
     *,
     args: argparse.Namespace,
@@ -394,11 +484,17 @@ def build_challenger_candidates(
     append_vllm_common_args(cmd, args)
 
     if args.policy == "vllm":
-        cmd += [
-            "--base_model", args.base_model,
-            "--challenger_lora", str(challenger_ref),
-            "--solver_lora", str(solver_ref),
-        ]
+        if args.full_param:
+            cmd += [
+                "--challenger_model", str(challenger_ref),
+                "--solver_model", str(solver_ref),
+            ]
+        else:
+            cmd += [
+                "--base_model", args.base_model,
+                "--challenger_lora", str(challenger_ref),
+                "--solver_lora", str(solver_ref),
+            ]
 
     run_cmd(cmd, log_path=round_dir / f"{tag}_challenger_rollouts.log")
     stats = assert_challenger_candidates(out_candidates_jsonl, "rzero")
@@ -472,10 +568,15 @@ def build_solver_rollouts_and_rows(
     append_vllm_common_args(rollout_cmd, args)
 
     if args.policy == "vllm":
-        rollout_cmd += [
-            "--base_model", args.base_model,
-            "--solver_lora", str(solver_ref),
-        ]
+        if args.full_param:
+            rollout_cmd += [
+                "--solver_model", str(solver_ref),
+            ]
+        else:
+            rollout_cmd += [
+                "--base_model", args.base_model,
+                "--solver_lora", str(solver_ref),
+            ]
 
     run_cmd(rollout_cmd, log_path=round_dir / f"r{round_idx}_solver_rollouts.log")
     traj_stats = assert_solver_only_trajectories(traj_jsonl)
@@ -538,19 +639,31 @@ def run_rzero_round(
     )
 
     # B. train challenger_i.
-    challenger_out = round_dir / f"r{round_idx}_challenger_lora"
+    challenger_out = round_dir / (
+        f"r{round_idx}_challenger_model" if args.full_param else f"r{round_idx}_challenger_lora"
+    )
     if args.skip_train:
         challenger_next = challenger_ref
         challenger_trained = False
     else:
-        challenger_next = train_role_lora(
-            args=args,
-            role="challenger",
-            rollouts_jsonl=challenger_rows_jsonl,
-            lora_in=challenger_ref,
-            lora_out=challenger_out,
-            log_path=round_dir / f"r{round_idx}_train_challenger.log",
-        )
+        if args.full_param:
+            challenger_next = train_role_full_param(
+                args=args,
+                role="challenger",
+                rollouts_jsonl=challenger_rows_jsonl,
+                model_in=challenger_ref,
+                model_out=challenger_out,
+                log_path=round_dir / f"r{round_idx}_train_challenger.log",
+            )
+        else:
+            challenger_next = train_role_lora(
+                args=args,
+                role="challenger",
+                rollouts_jsonl=challenger_rows_jsonl,
+                lora_in=challenger_ref,
+                lora_out=challenger_out,
+                log_path=round_dir / f"r{round_idx}_train_challenger.log",
+            )
         challenger_trained = True
 
     # C. updated challenger_i produces solver-training tasks.
@@ -598,19 +711,31 @@ def run_rzero_round(
     solver_rows_jsonl = Path(solver_data["solver_rows_jsonl"])
 
     # E. train solver_i.
-    solver_out = round_dir / f"r{round_idx}_solver_lora"
+    solver_out = round_dir / (
+        f"r{round_idx}_solver_model" if args.full_param else f"r{round_idx}_solver_lora"
+    )
     if args.skip_train:
         solver_next = solver_ref
         solver_trained = False
     else:
-        solver_next = train_role_lora(
-            args=args,
-            role="solver",
-            rollouts_jsonl=solver_rows_jsonl,
-            lora_in=solver_ref,
-            lora_out=solver_out,
-            log_path=round_dir / f"r{round_idx}_train_solver.log",
-        )
+        if args.full_param:
+            solver_next = train_role_full_param(
+                args=args,
+                role="solver",
+                rollouts_jsonl=solver_rows_jsonl,
+                model_in=solver_ref,
+                model_out=solver_out,
+                log_path=round_dir / f"r{round_idx}_train_solver.log",
+            )
+        else:
+            solver_next = train_role_lora(
+                args=args,
+                role="solver",
+                rollouts_jsonl=solver_rows_jsonl,
+                lora_in=solver_ref,
+                lora_out=solver_out,
+                log_path=round_dir / f"r{round_idx}_train_solver.log",
+            )
         solver_trained = True
 
     return {
@@ -647,10 +772,15 @@ def main(argv: Optional[List[str]] = None) -> None:
     if not args.skip_train:
         if args.policy != "vllm":
             raise ValueError("Real training requires --policy vllm")
-        if not args.base_model:
-            raise ValueError("Real training requires --base_model or BASE_MODEL env var")
+        if not args.base_model and not args.full_param:
+            raise ValueError("LoRA training requires --base_model or BASE_MODEL env var")
+        if args.full_param and not (args.base_model or args.challenger_model or args.solver_model):
+            raise ValueError("Full-param training requires --base_model or role model paths")
 
-    if args.skip_train:
+    if args.full_param:
+        challenger_ref = args.challenger_model or args.base_model or "random_challenger_model"
+        solver_ref = args.solver_model or args.base_model or "random_solver_model"
+    elif args.skip_train:
         challenger_ref = args.challenger_lora or args.base_model or "random_challenger"
         solver_ref = args.solver_lora or args.base_model or "random_solver"
     else:
@@ -689,7 +819,11 @@ def main(argv: Optional[List[str]] = None) -> None:
             {
                 "route": "rzero",
                 "env": args.env,
-                "protocol": "trainable_challenger_monolithic_solver_lora",
+                "protocol": (
+                    "trainable_challenger_monolithic_solver_full_param"
+                    if args.full_param
+                    else "trainable_challenger_monolithic_solver_lora"
+                ),
                 "trained": not args.skip_train,
                 "rounds": rounds,
             },
