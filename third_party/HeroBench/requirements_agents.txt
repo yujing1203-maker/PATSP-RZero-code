@@ -1,0 +1,7 @@
+langchain==0.3.17
+loguru==0.7.3
+openai==1.59.9
+python-dotenv==1.0.1
+requests==2.32.3
+strictjson==6.1.1
+taskgen-ai==4.0.1

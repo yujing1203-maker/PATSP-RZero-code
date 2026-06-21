@@ -1,0 +1,26 @@
+Please validate the following low-level execution plan for the RPG agent.
+
+Check:
+- Whether the character moves to the correct tile before each gather/craft/fight
+- Whether the resource/workshop/monster exists at the specified location
+- Whether the quantities of gather/craft/fight actions are sufficient
+- Whether the command format is strictly correct (e.g., `Move [X,Y]`)
+- Whether no steps are missing between actions
+
+High-level objective:
+{objective}
+
+Information about task related entity:
+{entity_info}
+
+Game world:
+{map_content}
+
+Current subtasks:
+{current_subtasks}
+
+Character attributes:
+{character_stats}
+
+Inventory:
+{character_inventory}

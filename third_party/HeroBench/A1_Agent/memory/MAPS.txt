@@ -1,0 +1,335 @@
+
+Resources: 
+Resource "Salmon Fishing Spot": 
+ - Resource: "Salmon" 
+ - Location: (X = -3, Y = -4) 
+
+Resource "Gold Rocks": 
+ - Resource: "Gold Ore", "Topaz", "Emerald", "Ruby", "Sapphire" 
+ - Location: (X = 10, Y = -4) 
+
+Resource "Ash Tree": 
+ - Resource: "Ash Wood", "Sap" 
+ - Location: (X = -1, Y = 0) 
+
+Resource "Copper Rocks": 
+ - Resource: "Copper Ore", "Topaz", "Emerald" 
+ - Location: (X = 2, Y = 0) 
+
+Resource "Ash Tree": 
+ - Resource: "Ash Wood", "Sap" 
+ - Location: (X = 6, Y = 1) 
+
+Resource "Gudgeon Fishing Spot": 
+ - Resource: "Gudgeon" 
+ - Location: (X = 4, Y = 2) 
+
+Resource "Shrimp Fishing Spot": 
+ - Resource: "Shrimp", "Golden Shrimp" 
+ - Location: (X = 5, Y = 2) 
+
+Resource "Birch Tree": 
+ - Resource: "Birch Wood", "Sap" 
+ - Location: (X = 3, Y = 5) 
+
+Resource "Birch Tree": 
+ - Resource: "Birch Wood", "Sap" 
+ - Location: (X = -1, Y = 6) 
+
+Resource "Jasper Rocks": 
+ - Resource: "Jasper Crystal" 
+ - Location: (X = 0, Y = 6) 
+
+Resource "Coal Rocks": 
+ - Resource: "Coal", "Topaz", "Emerald", "Ruby", "Sapphire" 
+ - Location: (X = 1, Y = 6) 
+
+Resource "Spruce Tree": 
+ - Resource: "Spruce Wood", "Sap" 
+ - Location: (X = 2, Y = 6) 
+
+Resource "Magic Rocks": 
+ - Resource: "Magical Cure" 
+ - Location: (X = 3, Y = 6) 
+
+Resource "Magic Tree": 
+ - Resource: "Magic Wood", "Magic Sap" 
+ - Location: (X = -3, Y = 7) 
+
+Resource "Strange Rocks": 
+ - Resource: "Strange Ore", "Diamond" 
+ - Location: (X = -1, Y = 7) 
+
+Resource "Iron Rocks": 
+ - Resource: "Iron Ore", "Ruby", "Sapphire" 
+ - Location: (X = 1, Y = 7) 
+
+Resource "Dead Tree": 
+ - Resource: "Dead Wood", "Sap" 
+ - Location: (X = 9, Y = 8) 
+
+Resource "Spruce Tree": 
+ - Resource: "Spruce Wood", "Sap" 
+ - Location: (X = 1, Y = 9) 
+
+Resource "Bass Fishing Spot": 
+ - Resource: "Bass" 
+ - Location: (X = 6, Y = 12) 
+
+Resource "Trout Fishing Spot": 
+ - Resource: "Trout" 
+ - Location: (X = 7, Y = 12) 
+
+Monsters: 
+- Monster: Ogre 
+ - Location: (X = -5, Y = -5) 
+ - Level: 20 
+ - HP: 680 
+ - Drops: "Ogre Eye", "Ogre Skin" 
+
+- Monster: Ogre 
+ - Location: (X = -5, Y = -4) 
+ - Level: 20 
+ - HP: 680 
+ - Drops: "Ogre Eye", "Ogre Skin" 
+
+- Monster: Pig 
+ - Location: (X = -3, Y = -3) 
+ - Level: 19 
+ - HP: 480 
+ - Drops: "Pig Skin" 
+
+- Monster: Blue Slime 
+ - Location: (X = 0, Y = -2) 
+ - Level: 6 
+ - HP: 120 
+ - Drops: "Blue Slimeball" 
+
+- Monster: Yellow Slime 
+ - Location: (X = 1, Y = -2) 
+ - Level: 2 
+ - HP: 70 
+ - Drops: "Yellow Slimeball" 
+
+- Monster: Red Slime 
+ - Location: (X = 2, Y = -2) 
+ - Level: 7 
+ - HP: 120 
+ - Drops: "Red Slimeball" 
+
+- Monster: Green Slime 
+ - Location: (X = 3, Y = -2) 
+ - Level: 4 
+ - HP: 80 
+ - Drops: "Green Slimeball" 
+
+- Monster: Green Slime 
+ - Location: (X = 0, Y = -1) 
+ - Level: 4 
+ - HP: 80 
+ - Drops: "Green Slimeball" 
+
+- Monster: Red Slime 
+ - Location: (X = 1, Y = -1) 
+ - Level: 7 
+ - HP: 120 
+ - Drops: "Red Slimeball" 
+
+- Monster: Blue Slime 
+ - Location: (X = 2, Y = -1) 
+ - Level: 6 
+ - HP: 120 
+ - Drops: "Blue Slimeball" 
+
+- Monster: Yellow Slime 
+ - Location: (X = 4, Y = -1) 
+ - Level: 2 
+ - HP: 70 
+ - Drops: "Yellow Slimeball" 
+
+- Monster: Wolf 
+ - Location: (X = -3, Y = 0) 
+ - Level: 15 
+ - HP: 400 
+ - Drops: "Raw Wolf Meat", "Wolf Bone", "Wolf Hair" 
+
+- Monster: Wolf 
+ - Location: (X = -2, Y = 1) 
+ - Level: 15 
+ - HP: 400 
+ - Drops: "Raw Wolf Meat", "Wolf Bone", "Wolf Hair" 
+
+- Monster: Chicken 
+ - Location: (X = 0, Y = 1) 
+ - Level: 1 
+ - HP: 60 
+ - Drops: "Raw Chicken", "Egg", "Golden Egg", "Feather" 
+
+- Monster: Owlbear 
+ - Location: (X = 10, Y = 1) 
+ - Level: 30 
+ - HP: 1100 
+ - Drops: "Owlbear Hair" 
+
+- Monster: Cow 
+ - Location: (X = 0, Y = 2) 
+ - Level: 8 
+ - HP: 280 
+ - Drops: "Raw Beef", "Milk Bucket", "Cowhide" 
+
+- Monster: Scarecrow 
+ - Location: (X = 2, Y = 2) 
+ - Level: 20 
+ - HP: 800 
+ - Drops: "Pumpkin", "Voodo Doll" 
+
+- Monster: Owlbear 
+ - Location: (X = 10, Y = 2) 
+ - Level: 30 
+ - HP: 1100 
+ - Drops: "Owlbear Hair" 
+
+- Monster: Mushmush 
+ - Location: (X = 5, Y = 3) 
+ - Level: 10 
+ - HP: 350 
+ - Drops: "Mushroom" 
+
+- Monster: Flying Serpent 
+ - Location: (X = 5, Y = 4) 
+ - Level: 12 
+ - HP: 360 
+ - Drops: "Flying Wing", "Serpent Skin" 
+
+- Monster: Mushmush 
+ - Location: (X = 6, Y = 4) 
+ - Level: 10 
+ - HP: 350 
+ - Drops: "Mushroom" 
+
+- Monster: Flying Serpent 
+ - Location: (X = 7, Y = 4) 
+ - Level: 12 
+ - HP: 360 
+ - Drops: "Flying Wing", "Serpent Skin" 
+
+- Monster: Rosenblood 
+ - Location: (X = 7, Y = 6) 
+ - Level: 40 
+ - HP: 3000 
+ - Drops: "Sanguine Edge Of Rosen", "Rosenblood Elixir" 
+
+- Monster: Skeleton 
+ - Location: (X = 8, Y = 6) 
+ - Level: 18 
+ - HP: 480 
+ - Drops: "Skeleton Bone", "Skeleton Skull" 
+
+- Monster: Reaper 
+ - Location: (X = 9, Y = 6) 
+ - Level: 40 
+ - HP: 3000 
+ - Drops: "Voodo Doll", "Reaper Cloak" 
+
+- Monster: Vampire 
+ - Location: (X = 10, Y = 6) 
+ - Level: 24 
+ - HP: 700 
+ - Drops: "Vampire Blood" 
+
+- Monster: Death Knight 
+ - Location: (X = 8, Y = 7) 
+ - Level: 28 
+ - HP: 820 
+ - Drops: "Death Knight Sword", "Red Cloth" 
+
+- Monster: Lich 
+ - Location: (X = 9, Y = 7) 
+ - Level: 30 
+ - HP: 1500 
+ - Drops: "Life Crystal", "Lich Crown" 
+
+- Monster: Death Knight 
+ - Location: (X = 10, Y = 7) 
+ - Level: 28 
+ - HP: 820 
+ - Drops: "Death Knight Sword", "Red Cloth" 
+
+- Monster: Bat 
+ - Location: (X = 11, Y = 7) 
+ - Level: 38 
+ - HP: 2000 
+ - Drops: "Bat Wing" 
+
+- Monster: Bandit Lizard 
+ - Location: (X = 4, Y = 8) 
+ - Level: 25 
+ - HP: 800 
+ - Drops: "Bandit Armor", "Lizard Skin" 
+
+- Monster: Skeleton 
+ - Location: (X = 8, Y = 8) 
+ - Level: 18 
+ - HP: 480 
+ - Drops: "Skeleton Bone", "Skeleton Skull" 
+
+- Monster: Vampire 
+ - Location: (X = 10, Y = 8) 
+ - Level: 24 
+ - HP: 700 
+ - Drops: "Vampire Blood" 
+
+- Monster: Bat 
+ - Location: (X = 8, Y = 9) 
+ - Level: 38 
+ - HP: 2000 
+ - Drops: "Bat Wing" 
+
+- Monster: Imp 
+ - Location: (X = -1, Y = 12) 
+ - Level: 28 
+ - HP: 1800 
+ - Drops: "Demoniac Dust", "Piece Of Obsidian" 
+
+- Monster: Cultist Emperor 
+ - Location: (X = -2, Y = 13) 
+ - Level: 35 
+ - HP: 1800 
+ - Drops: "Malefic Cloth" 
+
+- Monster: Cultist Acolyte 
+ - Location: (X = -1, Y = 13) 
+ - Level: 33 
+ - HP: 1550 
+ - Drops: "Magic Stone", "Cursed Book" 
+
+- Monster: Imp 
+ - Location: (X = 0, Y = 13) 
+ - Level: 28 
+ - HP: 1800 
+ - Drops: "Demoniac Dust", "Piece Of Obsidian" 
+
+- Monster: Demon 
+ - Location: (X = 1, Y = 13) 
+ - Level: 30 
+ - HP: 1060 
+ - Drops: "Demon Horn", "Piece Of Obsidian" 
+
+Workshops: 
+- Woodcutting workshop: 
+ - Location: (X = -2, Y = -3) 
+
+- Cooking workshop: 
+ - Location: (X = 1, Y = 1) 
+
+- Weaponcrafting workshop: 
+ - Location: (X = 2, Y = 1) 
+
+- Gearcrafting workshop: 
+ - Location: (X = 3, Y = 1) 
+
+- Jewelrycrafting workshop: 
+ - Location: (X = 1, Y = 3) 
+
+- Mining workshop: 
+ - Location: (X = 1, Y = 5) 

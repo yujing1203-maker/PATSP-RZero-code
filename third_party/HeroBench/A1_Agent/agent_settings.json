@@ -1,0 +1,6 @@
+{
+  "subtasks_decomposition_attempts_limit" : 10,
+  "actions_decomposition_attempts_limit" :  10,
+  "execute_actions_chains":  false,
+  "console_verbose": true
+}

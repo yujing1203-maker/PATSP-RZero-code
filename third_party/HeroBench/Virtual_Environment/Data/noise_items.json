@@ -1,0 +1,1141 @@
+[
+  {
+    "name": "Celestial Thunderblade",
+    "code": "celestial_thunderblade",
+    "level": 30,
+    "type": "weapon",
+    "subtype": "sword",
+    "description": "A blade crackling with heavenly energy.",
+    "effects": [
+      {
+        "name": "attack_air",
+        "value": 65
+      },
+      {
+        "name": "attack_fire",
+        "value": 15
+      }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 30,
+      "items": [
+        { "code": "sky_essence", "quantity": 3 },
+        { "code": "gold", "quantity": 8 },
+        { "code": "phoenix_feather", "quantity": 1 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "red_cloth", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Frostwrought Circlet",
+    "code": "frostwrought_circlet",
+    "level": 30,
+    "type": "helmet",
+    "subtype": "",
+    "description": "Gleaming circlet imbued with ancient frost.",
+    "effects": [
+      { "name": "hp", "value": 210 },
+      { "name": "dmg_water", "value": 27 },
+      { "name": "res_air", "value": 10 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 30,
+      "items": [
+        { "code": "frost_crystal", "quantity": 4 },
+        { "code": "owlbear_hair", "quantity": 3 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Venombone Spaulders",
+    "code": "venombone_spaulders",
+    "level": 30,
+    "type": "body_armor",
+    "subtype": "",
+    "description": "Armor decorated with venomous fangs.",
+    "effects": [
+      { "name": "hp", "value": 160 },
+      { "name": "dmg_earth", "value": 25 },
+      { "name": "res_fire", "value": 8 },
+      { "name": "res_water", "value": 7 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 30,
+      "items": [
+        { "code": "venom_sac", "quantity": 5 },
+        { "code": "gold", "quantity": 6 },
+        { "code": "skeleton_bone", "quantity": 5 },
+        { "code": "demon_horn", "quantity": 2 },
+        { "code": "red_cloth", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Gale Walker Boots",
+    "code": "gale_walker_boots",
+    "level": 30,
+    "type": "boots",
+    "subtype": "",
+    "description": "Light boots that increase the wearer's speed.",
+    "effects": [
+      { "name": "hp", "value": 120 },
+      { "name": "haste", "value": 10 },
+      { "name": "res_air", "value": 9 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 30,
+      "items": [
+        { "code": "windleaf", "quantity": 4 },
+        { "code": "dead_wood_plank", "quantity": 6 },
+        { "code": "owlbear_hair", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "blue_cloth", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Runic Talisman",
+    "code": "runic_talisman",
+    "level": 30,
+    "type": "amulet",
+    "subtype": "",
+    "description": "A necklace inscribed with runes of power.",
+    "effects": [
+      { "name": "hp", "value": 90 },
+      { "name": "dmg_fire", "value": 18 },
+      { "name": "res_earth", "value": 8 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 30,
+      "items": [
+        { "code": "ancient_rune", "quantity": 2 },
+        { "code": "obsidian", "quantity": 4 },
+        { "code": "owlbear_hair", "quantity": 3 },
+        { "code": "red_cloth", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Pyrelord Gauntlets",
+    "code": "pyrelord_gauntlets",
+    "level": 30,
+    "type": "artifact1",
+    "subtype": "",
+    "description": "Gloves radiating burning energy.",
+    "effects": [
+      { "name": "dmg_fire", "value": 35 },
+      { "name": "res_fire", "value": 12 },
+      { "name": "hp", "value": 80 }
+    ],
+    "craft": {
+      "skill": "artifactcrafting",
+      "level": 30,
+      "items": [
+        { "code": "ember_dust", "quantity": 5 },
+        { "code": "demon_horn", "quantity": 2 },
+        { "code": "gold", "quantity": 4 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "molten_core", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Blizzard Signet",
+    "code": "blizzard_signet",
+    "level": 30,
+    "type": "ring1",
+    "subtype": "",
+    "description": "",
+    "effects": [
+      { "name": "dmg_water", "value": 12 },
+      { "name": "res_fire", "value": 9 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 30,
+      "items": [
+        { "code": "frost_crystal", "quantity": 3 },
+        { "code": "owlbear_hair", "quantity": 2 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "icicle_shard", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Vampiric Chainmail",
+    "code": "vampiric_chainmail",
+    "level": 35,
+    "type": "body_armor",
+    "subtype": "",
+    "description": "Forged from dark steel and the blood of the damned.",
+    "effects": [
+      { "name": "hp", "value": 180 },
+      { "name": "dmg_fire", "value": 28 },
+      { "name": "res_earth", "value": 10 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "dark_steel", "quantity": 8 },
+        { "code": "vampire_blood", "quantity": 5 },
+        { "code": "red_cloth", "quantity": 4 },
+        { "code": "soul_fragment", "quantity": 2 },
+        { "code": "owlbear_hair", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Moonlit Wraps",
+    "code": "moonlit_wraps",
+    "level": 35,
+    "type": "leg_armor",
+    "subtype": "",
+    "description": "Silvery wraps imbued with lunar magic.",
+    "effects": [
+      { "name": "hp", "value": 140 },
+      { "name": "haste", "value": 8 },
+      { "name": "res_water", "value": 11 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "moon_thread", "quantity": 4 },
+        { "code": "magical_plank", "quantity": 6 },
+        { "code": "blue_cloth", "quantity": 3 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Infernal Battleaxe",
+    "code": "infernal_battleaxe",
+    "level": 35,
+    "type": "weapon",
+    "subtype": "axe",
+    "description": "A heavy axe wreathed in flames.",
+    "effects": [
+      { "name": "attack_fire", "value": 75 },
+      { "name": "attack_earth", "value": 20 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 35,
+      "items": [
+        { "code": "infernal_ore", "quantity": 7 },
+        { "code": "magical_plank", "quantity": 4 },
+        { "code": "bat_wing", "quantity": 4 },
+        { "code": "demon_horn", "quantity": 3 },
+        { "code": "soul_fragment", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Griffon Winged Helm",
+    "code": "griffon_winged_helm",
+    "level": 35,
+    "type": "helmet",
+    "subtype": "helm",
+    "description": "Crested helm with griffon feathers.",
+    "effects": [
+      { "name": "hp", "value": 250 },
+      { "name": "dmg_air", "value": 22 },
+      { "name": "res_air", "value": 12 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "griffon_feather", "quantity": 4 },
+        { "code": "strangold", "quantity": 6 },
+        { "code": "magic_stone", "quantity": 3 },
+        { "code": "demon_horn", "quantity": 3 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Crystal Wave Shield",
+    "code": "crystal_wave_shield",
+    "level": 35,
+    "type": "shield",
+    "subtype": "",
+    "description": "Shield of ever-moving water.",
+    "effects": [
+      { "name": "res_water", "value": 15 },
+      { "name": "res_fire", "value": 8 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "water_crystal", "quantity": 6 },
+        { "code": "strangold", "quantity": 5 },
+        { "code": "sapphire", "quantity": 2 },
+        { "code": "magic_stone", "quantity": 2 },
+        { "code": "blue_slimeball", "quantity": 7 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Bloodforged Necklace",
+    "code": "bloodforged_necklace",
+    "level": 35,
+    "type": "amulet",
+    "subtype": "",
+    "description": "A sinister amulet, warm to the touch.",
+    "effects": [
+      { "name": "hp", "value": 110 },
+      { "name": "dmg_fire", "value": 18 },
+      { "name": "res_air", "value": 11 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 35,
+      "items": [
+        { "code": "blood_gem", "quantity": 1 },
+        { "code": "strangold", "quantity": 6 },
+        { "code": "vampire_blood", "quantity": 5 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "bat_wing", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Drake Hide Boots",
+    "code": "drake_hide_boots",
+    "level": 35,
+    "type": "boots",
+    "subtype": "",
+    "description": "Boots crafted from drake leather.",
+    "effects": [
+      { "name": "hp", "value": 130 },
+      { "name": "haste", "value": 6 },
+      { "name": "res_earth", "value": 10 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "drake_hide", "quantity": 3 },
+        { "code": "magical_plank", "quantity": 6 },
+        { "code": "owlbear_hair", "quantity": 3 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Thunder Emperor’s Bow",
+    "code": "thunder_emperor_bow",
+    "level": 35,
+    "type": "weapon",
+    "subtype": "bow",
+    "description": "Unleashes bolts of thunder with each shot.",
+    "effects": [
+      { "name": "attack_air", "value": 70 },
+      { "name": "attack_earth", "value": 15 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 35,
+      "items": [
+        { "code": "thunder_wood", "quantity": 6 },
+        { "code": "magic_sap", "quantity": 2 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "demon_horn", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Phantom Mantle",
+    "code": "phantom_mantle",
+    "level": 35,
+    "type": "body_armor",
+    "subtype": "",
+    "description": "Woven from threads found in the shadow realm.",
+    "effects": [
+      { "name": "hp", "value": 190 },
+      { "name": "dmg_air", "value": 17 },
+      { "name": "res_water", "value": 9 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "shadow_thread", "quantity": 5 },
+        { "code": "malefic_cloth", "quantity": 3 },
+        { "code": "owlbear_hair", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "obsidian", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Ironroot Pickaxe",
+    "code": "ironroot_pickaxe",
+    "level": 35,
+    "type": "weapon",
+    "subtype": "tool",
+    "description": "Reduces mining cooldown by 25%.",
+    "effects": [
+      { "name": "attack_earth", "value": 9 },
+      { "name": "mining", "value": -25 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 35,
+      "items": [
+        { "code": "ironroot", "quantity": 5 },
+        { "code": "magical_plank", "quantity": 5 },
+        { "code": "topaz", "quantity": 1 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "demon_horn", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Molten Guardian Shield",
+    "code": "molten_guardian_shield",
+    "level": 40,
+    "type": "shield",
+    "subtype": "",
+    "description": "A shield with a burning core.",
+    "effects": [
+      { "name": "res_fire", "value": 22 },
+      { "name": "res_earth", "value": 12 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "molten_core", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "ruby", "quantity": 2 },
+        { "code": "bat_wing", "quantity": 4 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Stormcaller’s Diadem",
+    "code": "stormcaller_diadem",
+    "level": 40,
+    "type": "helmet",
+    "subtype": "",
+    "description": "Worn by the priests of the high storm.",
+    "effects": [
+      { "name": "hp", "value": 280 },
+      { "name": "dmg_air", "value": 38 },
+      { "name": "res_air", "value": 13 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "storm_gem", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "magic_sap", "quantity": 2 },
+        { "code": "owlbear_hair", "quantity": 4 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Dawnforged Greaves",
+    "code": "dawnforged_greaves",
+    "level": 40,
+    "type": "leg_armor",
+    "subtype": "",
+    "description": "Greaves that shine with radiant light.",
+    "effects": [
+      { "name": "hp", "value": 210 },
+      { "name": "haste", "value": 11 },
+      { "name": "res_fire", "value": 11 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "dawn_crystal", "quantity": 3 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "red_cloth", "quantity": 4 },
+        { "code": "lizard_skin", "quantity": 3 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Nether Chain",
+    "code": "nether_chain",
+    "level": 40,
+    "type": "amulet",
+    "subtype": "",
+    "description": "A cursed amulet from the abyss.",
+    "effects": [
+      { "name": "hp", "value": 130 },
+      { "name": "dmg_fire", "value": 23 },
+      { "name": "dmg_earth", "value": 19 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 40,
+      "items": [
+        { "code": "nether_essence", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "magic_stone", "quantity": 3 },
+        { "code": "malefic_cloth", "quantity": 3 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Sunfire Cloak",
+    "code": "sunfire_cloak",
+    "level": 40,
+    "type": "body_armor",
+    "subtype": "",
+    "description": "Woven from the rays of dawn.",
+    "effects": [
+      { "name": "hp", "value": 250 },
+      { "name": "dmg_fire", "value": 32 },
+      { "name": "res_air", "value": 13 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "sun_fragment", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "gold", "quantity": 4 },
+        { "code": "magic_stone", "quantity": 2 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Ghoststeel Sword",
+    "code": "ghoststeel_sword",
+    "level": 40,
+    "type": "weapon",
+    "subtype": "sword",
+    "description": "A blade that phases through armor.",
+    "effects": [
+      { "name": "attack_air", "value": 85 },
+      { "name": "attack_water", "value": 10 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 40,
+      "items": [
+        { "code": "ghoststeel_ingot", "quantity": 3 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "phantom_essence", "quantity": 2 },
+        { "code": "bat_wing", "quantity": 3 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Howling Ring",
+    "code": "howling_ring",
+    "level": 40,
+    "type": "ring2",
+    "subtype": "",
+    "description": "Echoes the cry of the wild.",
+    "effects": [
+      { "name": "dmg_air", "value": 18 },
+      { "name": "res_earth", "value": 14 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 40,
+      "items": [
+        { "code": "wolf_tooth", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "magic_stone", "quantity": 3 },
+        { "code": "owlbear_hair", "quantity": 4 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Oblivion Spire",
+    "code": "oblivion_spire",
+    "level": 40,
+    "type": "artifact2",
+    "subtype": "",
+    "description": "Staff infused with the void.",
+    "effects": [
+      { "name": "attack_fire", "value": 90 },
+      { "name": "attack_earth", "value": 25 }
+    ],
+    "craft": {
+      "skill": "artifactcrafting",
+      "level": 40,
+      "items": [
+        { "code": "void_shard", "quantity": 2 },
+        { "code": "strangold", "quantity": 8 },
+        { "code": "magic_stone", "quantity": 3 },
+        { "code": "owlbear_hair", "quantity": 4 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Eternal Watcher’s Helm",
+    "code": "eternal_watchers_helm",
+    "level": 40,
+    "type": "helmet",
+    "subtype": "",
+    "description": "Helm worn by the sentinels of time.",
+    "effects": [
+      { "name": "hp", "value": 300 },
+      { "name": "res_fire", "value": 16 },
+      { "name": "res_earth", "value": 12 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "time_crystal", "quantity": 2 },
+        { "code": "strangold", "quantity": 7 },
+        { "code": "owlbear_hair", "quantity": 5 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "rosenblood_elixir", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Stormforged Halberd",
+    "code": "stormforged_halberd",
+    "level": 30,
+    "type": "weapon",
+    "subtype": "halberd",
+    "description": "A polearm crackling with storm energy.",
+    "effects": [
+      { "name": "attack_air", "value": 50 },
+      { "name": "attack_earth", "value": 30 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 30,
+      "items": [
+        { "code": "storm_shard", "quantity": 4 },
+        { "code": "dead_wood_plank", "quantity": 3 },
+        { "code": "gold", "quantity": 5 },
+        { "code": "phoenix_feather", "quantity": 1 },
+        { "code": "red_cloth", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Aegis of Embers",
+    "code": "aegis_of_embers",
+    "level": 30,
+    "type": "shield",
+    "subtype": "",
+    "description": "A shield that radiates searing heat.",
+    "effects": [
+      { "name": "res_fire", "value": 18 },
+      { "name": "res_water", "value": 6 },
+      { "name": "res_air", "value": -5 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 30,
+      "items": [
+        { "code": "ember_steel", "quantity": 5 },
+        { "code": "gold", "quantity": 4 },
+        { "code": "demon_horn", "quantity": 2 },
+        { "code": "skeleton_bone", "quantity": 3 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Ironwood Greathelm",
+    "code": "ironwood_greathelm",
+    "level": 35,
+    "type": "helmet",
+    "subtype": "",
+    "description": "A heavy helm carved from living ironwood.",
+    "effects": [
+      { "name": "hp", "value": 260 },
+      { "name": "res_earth", "value": 15 },
+      { "name": "res_air", "value": 5 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "ironwood", "quantity": 6 },
+        { "code": "dead_wood_plank", "quantity": 4 },
+        { "code": "owlbear_hair", "quantity": 3 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Twilight Greaves",
+    "code": "twilight_greaves",
+    "level": 35,
+    "type": "leg_armor",
+    "subtype": "",
+    "description": "Greaves that shimmer between day and night.",
+    "effects": [
+      { "name": "hp", "value": 160 },
+      { "name": "res_fire", "value": 12 },
+      { "name": "res_earth", "value": 12 },
+      { "name": "res_air", "value": 12 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "dusk_cloth", "quantity": 4 },
+        { "code": "strangold", "quantity": 5 },
+        { "code": "red_cloth", "quantity": 3 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Wyrmhide Boots",
+    "code": "wyrmhide_boots",
+    "level": 35,
+    "type": "boots",
+    "subtype": "",
+    "description": "Boots fashioned from drake scales.",
+    "effects": [
+      { "name": "hp", "value": 140 },
+      { "name": "res_fire", "value": 10 },
+      { "name": "res_water", "value": 10 },
+      { "name": "haste", "value": 8 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "wyrm_scale", "quantity": 5 },
+        { "code": "dead_wood_plank", "quantity": 4 },
+        { "code": "owlbear_hair", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "blue_cloth", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Ethereal Pendant",
+    "code": "ethereal_pendant",
+    "level": 40,
+    "type": "amulet",
+    "subtype": "",
+    "description": "An amulet woven from otherworldly fibers.",
+    "effects": [
+      { "name": "hp", "value": 120 },
+      { "name": "res_air", "value": 20 },
+      { "name": "dmg_water", "value": 20 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 40,
+      "items": [
+        { "code": "ether_fiber", "quantity": 3 },
+        { "code": "obsidian", "quantity": 5 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "dead_wood_plank", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Magma Edge",
+    "code": "magma_edge",
+    "level": 40,
+    "type": "weapon",
+    "subtype": "sword",
+    "description": "Blade imbued with molten fury.",
+    "effects": [
+      { "name": "attack_fire", "value": 85 },
+      { "name": "attack_earth", "value": 20 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 40,
+      "items": [
+        { "code": "magma_essence", "quantity": 4 },
+        { "code": "ironwood", "quantity": 3 },
+        { "code": "demon_horn", "quantity": 3 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "molten_core", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Glacier Shield",
+    "code": "glacier_shield",
+    "level": 40,
+    "type": "shield",
+    "subtype": "",
+    "description": "A shield carved from eternal ice.",
+    "effects": [
+      { "name": "res_water", "value": 22 },
+      { "name": "res_air", "value": 10 },
+      { "name": "res_fire", "value": -5 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "glacier_ice", "quantity": 5 },
+        { "code": "dead_wood_plank", "quantity": 4 },
+        { "code": "sapphire", "quantity": 2 },
+        { "code": "blue_slimeball", "quantity": 8 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Astral Staff",
+    "code": "astral_staff",
+    "level": 40,
+    "type": "weapon",
+    "subtype": "staff",
+    "description": "Staff pulsating with cosmic light.",
+    "effects": [
+      { "name": "attack_air", "value": 60 },
+      { "name": "attack_water", "value": 40 },
+      { "name": "res_earth", "value": 5 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 40,
+      "items": [
+        { "code": "astral_silk", "quantity": 3 },
+        { "code": "dead_wood_plank", "quantity": 3 },
+        { "code": "magic_stone", "quantity": 3 },
+        { "code": "lizard_skin", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Shadowbane Ring",
+    "code": "shadowbane_ring",
+    "level": 40,
+    "type": "ring1",
+    "subtype": "",
+    "description": "Ring that burns shadows away.",
+    "effects": [
+      { "name": "dmg_earth", "value": 22 },
+      { "name": "res_fire", "value": 15 },
+      { "name": "res_water", "value": 5 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 40,
+      "items": [
+        { "code": "shadow_relic", "quantity": 2 },
+        { "code": "gold", "quantity": 4 },
+        { "code": "red_cloth", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "demon_horn", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Volcanic Glaive",
+    "code": "volcanic_glaive",
+    "level": 35,
+    "type": "weapon",
+    "subtype": "glaive",
+    "description": "A sweeping polearm forged in molten rock.",
+    "effects": [
+      { "name": "attack_fire", "value": 70 },
+      { "name": "attack_earth", "value": 25 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 35,
+      "items": [
+        { "code": "lava_essence", "quantity": 3 },
+        { "code": "strangold", "quantity": 5 },
+        { "code": "molten_core", "quantity": 2 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "red_cloth", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Stormshard Belt",
+    "code": "stormshard_belt",
+    "level": 35,
+    "type": "artifact3",
+    "subtype": "",
+    "description": "A belt humming with thunderous power.",
+    "effects": [
+      { "name": "res_air", "value": 18 },
+      { "name": "res_water", "value": 12 }
+    ],
+    "craft": {
+      "skill": "artifactcrafting",
+      "level": 35,
+      "items": [
+        { "code": "stormfeather", "quantity": 4 },
+        { "code": "dead_wood_plank", "quantity": 3 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "golem_core", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Earthrender Greathammer",
+    "code": "earthrender_greathammer",
+    "level": 40,
+    "type": "weapon",
+    "subtype": "hammer",
+    "description": "A colossal hammer that shatters the ground.",
+    "effects": [
+      { "name": "attack_earth", "value": 90 },
+      { "name": "hp", "value": 50 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 40,
+      "items": [
+        { "code": "abyssal_ink", "quantity": 2 },
+        { "code": "ironwood", "quantity": 4 },
+        { "code": "demon_horn", "quantity": 3 },
+        { "code": "golem_core", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Tempest Circlet",
+    "code": "tempest_circlet",
+    "level": 40,
+    "type": "helmet",
+    "subtype": "",
+    "description": "Circlet of swirling winds and rain.",
+    "effects": [
+      { "name": "res_air", "value": 20 },
+      { "name": "res_water", "value": 20 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 40,
+      "items": [
+        { "code": "dust_of_time", "quantity": 2 },
+        { "code": "storm_shard", "quantity": 3 },
+        { "code": "owlbear_hair", "quantity": 3 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Obsidian Girdle",
+    "code": "obsidian_girdle",
+    "level": 30,
+    "type": "artifact1",
+    "subtype": "",
+    "description": "A heavy belt carved from pure obsidian.",
+    "effects": [
+      { "name": "res_fire", "value": 10 },
+      { "name": "res_earth", "value": 10 },
+      { "name": "res_water", "value": 10 }
+    ],
+    "craft": {
+      "skill": "artifactcrafting",
+      "level": 30,
+      "items": [
+        { "code": "obsidian", "quantity": 6 },
+        { "code": "skeleton_bone", "quantity": 3 },
+        { "code": "silver_thread", "quantity": 2 },
+        { "code": "red_cloth", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Seabreeze Trident",
+    "code": "seabreeze_trident",
+    "level": 30,
+    "type": "weapon",
+    "subtype": "trident",
+    "description": "A three-pronged spear that commands the tides.",
+    "effects": [
+      { "name": "attack_water", "value": 60 },
+      { "name": "attack_air", "value": 30 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 30,
+      "items": [
+        { "code": "tidepearl", "quantity": 3 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "blue_cloth", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "gold", "quantity": 5 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Emberwoven Cloak",
+    "code": "emberwoven_cloak",
+    "level": 35,
+    "type": "body_armor",
+    "subtype": "",
+    "description": "A cloak warm to the touch, wreathed in embers.",
+    "effects": [
+      { "name": "dmg_fire", "value": 30 },
+      { "name": "res_water", "value": 15 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "sunshard", "quantity": 2 },
+        { "code": "magical_plank", "quantity": 5 },
+        { "code": "red_cloth", "quantity": 3 },
+        { "code": "demon_horn", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Crystalline Treads",
+    "code": "crystalline_treads",
+    "level": 35,
+    "type": "boots",
+    "subtype": "",
+    "description": "Boots that glint like frozen crystal.",
+    "effects": [
+      { "name": "res_water", "value": 18 },
+      { "name": "res_earth", "value": 8 }
+    ],
+    "craft": {
+      "skill": "gearcrafting",
+      "level": 35,
+      "items": [
+        { "code": "moonstone", "quantity": 3 },
+        { "code": "dead_wood_plank", "quantity": 4 },
+        { "code": "blue_cloth", "quantity": 2 },
+        { "code": "magical_cure", "quantity": 1 },
+        { "code": "owlbear_hair", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Sunflare Ring",
+    "code": "sunflare_ring",
+    "level": 40,
+    "type": "ring2",
+    "subtype": "",
+    "description": "A ring that blazes with solar might.",
+    "effects": [
+      { "name": "dmg_fire", "value": 25 },
+      { "name": "res_air", "value": 18 }
+    ],
+    "craft": {
+      "skill": "jewelrycrafting",
+      "level": 40,
+      "items": [
+        { "code": "sunshard", "quantity": 3 },
+        { "code": "gold", "quantity": 4 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "red_cloth", "quantity": 2 },
+        { "code": "silver_thread", "quantity": 2 }
+      ],
+      "quantity": 1
+    }
+  },
+  {
+    "name": "Nightfall Dagger",
+    "code": "nightfall_dagger",
+    "level": 40,
+    "type": "weapon",
+    "subtype": "dagger",
+    "description": "A swift blade drawn from the shadows.",
+    "effects": [
+      { "name": "attack_air", "value": 45 },
+      { "name": "attack_water", "value": 45 },
+      { "name": "haste", "value": 5 }
+    ],
+    "craft": {
+      "skill": "weaponcrafting",
+      "level": 40,
+      "items": [
+        { "code": "void_essence", "quantity": 2 },
+        { "code": "dead_wood_plank", "quantity": 2 },
+        { "code": "shadowgem", "quantity": 1 },
+        { "code": "magical_cure", "quantity": 2 },
+        { "code": "gold", "quantity": 3 }
+      ],
+      "quantity": 1
+    }
+  }  
+]

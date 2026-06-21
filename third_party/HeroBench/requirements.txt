@@ -1,0 +1,12 @@
+requests
+pytest
+fastapi==0.116.1
+fastapi-cli==0.0.8
+graphviz==0.21
+matplotlib==3.10.5
+numpy==2.3.2
+pandas==2.3.1
+SQLAlchemy==2.0.42
+sqlmodel==0.0.24
+redis==6.2.0
+

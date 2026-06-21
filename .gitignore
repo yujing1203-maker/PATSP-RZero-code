@@ -1,0 +1,93 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Editor
+.vscode/
+.DS_Store
+*.swp
+
+# Logs
+*.log
+logs/
+*.out
+*.err
+
+# Temporary / backup files
+*.bak
+*.bak_*
+*.before_*
+*.before_restore_*
+*.before_clean_restore_*
+*.before_manual_lr_revert_*
+*.clean_*
+*.tmp
+
+# Secrets / tokens
+.env
+.env.*
+tokens.json
+*token*.json
+*secret*
+*secrets*
+*api_key*
+*apikey*
+*.pem
+*.key
+
+# Models / checkpoints / large weights
+data/models/
+models/
+checkpoints/
+outputs/
+wandb/
+runs/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.gguf
+adapter_model.safetensors
+optimizer.pt
+scheduler.pt
+trainer_state.json
+
+# Benchmark datasets, not source code
+data/alfworld_data/
+data/scienceworld_data/
+data/textcraft_data/
+data/herobench_data/
+data/longreason_data/
+
+# Generated experiment artifacts
+RZero_storage/
+formal*/
+phaseA*/
+*_traj.jsonl
+*_tasks.jsonl
+*_planner.jsonl
+*_exec.jsonl
+*_solver.jsonl
+*_challenger.jsonl
+*_eval.jsonl
+*.summary.json
+rounds.json
+
+# Large data / caches
+.cache/
+.cache_*/
+hf_cache/
+huggingface/
+
+# More backup patterns
+*.bak.*
+
+# Third-party benchmark result dumps, not needed for code versioning
+third_party/HeroBench/results/
+third_party/HeroBench/A1_Agent/results/
+third_party/HeroBench/A2_Agent/results/

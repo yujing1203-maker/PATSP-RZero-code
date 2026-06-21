@@ -1,0 +1,137 @@
+{
+  "_comment": "Authoritative list of every dataset referenced by the R-Zero (no-FSDP LoRA) codebase. Verified against evaluation/datasets_loader.py, verl/utils/dataset.py, scripts/rzero_nofsdp_lora/build_external_math_eval_parquets.py, and scripts/data/build_multistep_train.py. Kept in sync with scripts/datasets/download_one.py (DATASETS) and download_all.sh.",
+  "hf_cache_env": ["HF_HOME", "HF_DATASETS_CACHE"],
+  "datasets": [
+    {
+      "key": "gsm8k",
+      "hf_id": "openai/gsm8k",
+      "config": "main",
+      "split": "train,test",
+      "gated": false,
+      "role": "train+eval",
+      "used_for": "TRAIN: build_multistep_train.py reads split=train (answers carry <<a op b=c>> calc annotations as ordered checkpoints) and build_external_math_eval_parquets.py reads split=test. EVAL: Gsm8kDatasetHandler reads split=test, answer after '####'.",
+      "loader": "evaluation/datasets_loader.py::Gsm8kDatasetHandler (test) ; scripts/data/build_multistep_train.py::load_gsm8k (train) ; scripts/rzero_nofsdp_lora/build_external_math_eval_parquets.py::load_gsm8k (test)"
+    },
+    {
+      "key": "math500",
+      "hf_id": "HuggingFaceH4/MATH-500",
+      "config": null,
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "primary_source": "https://openaipublic.blob.core.windows.net/simple-evals/math_500_test.csv",
+      "used_for": "EVAL: primary source is the openaipublic CSV (read live by pandas). HuggingFaceH4/MATH-500 (test) is the HF mirror; lighteval/MATH config=all split=test is the fallback.",
+      "loader": "evaluation/datasets_loader.py::MathDatasetHandler (CSV) ; scripts/rzero_nofsdp_lora/build_external_math_eval_parquets.py::load_math500 (HF mirror + fallback)"
+    },
+    {
+      "key": "math500_fallback",
+      "hf_id": "lighteval/MATH",
+      "config": "all",
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: fallback for MATH-500 when the HuggingFaceH4 mirror is unavailable.",
+      "loader": "scripts/rzero_nofsdp_lora/build_external_math_eval_parquets.py::load_math500 (fallback)"
+    },
+    {
+      "key": "amc23",
+      "hf_id": "zwhe99/amc23",
+      "config": null,
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: AMC 2023 competition math.",
+      "loader": "evaluation/datasets_loader.py::AmcDatasetHandler"
+    },
+    {
+      "key": "minerva",
+      "hf_id": "zwhe99/simplerl-minerva-math",
+      "config": null,
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: Minerva math (SimpleRL packaging).",
+      "loader": "evaluation/datasets_loader.py::MinervaDatasetHandler"
+    },
+    {
+      "key": "olympiad",
+      "hf_id": "zwhe99/simplerl-OlympiadBench",
+      "config": null,
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: OlympiadBench (SimpleRL packaging); answer = final_answer[0].",
+      "loader": "evaluation/datasets_loader.py::OlympiadDatasetHandler"
+    },
+    {
+      "key": "aime2024",
+      "hf_id": "HuggingFaceH4/aime_2024",
+      "config": null,
+      "split": "train",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: AIME 2024; the only shipped split is 'train' (replicated x32 by the loader).",
+      "loader": "evaluation/datasets_loader.py::Aime2024DatasetHandler"
+    },
+    {
+      "key": "aime2025",
+      "hf_id": "yentinglin/aime_2025",
+      "config": "default",
+      "split": "train",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: AIME 2025; loader reads the 'train' split of config 'default' (replicated x32).",
+      "loader": "evaluation/datasets_loader.py::Aime2025DatasetHandler"
+    },
+    {
+      "key": "mmlu_pro",
+      "hf_id": "TIGER-Lab/MMLU-Pro",
+      "config": null,
+      "split": "test",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: MMLU-Pro multiple-choice reasoning (subsampled to 1000).",
+      "loader": "evaluation/datasets_loader.py::MmluProDatasetHandler"
+    },
+    {
+      "key": "bbeh",
+      "hf_id": "MrLight/bbeh-eval",
+      "config": null,
+      "split": "train",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: BIG-Bench Extra Hard; loader reads 'train' (subsampled to 1000).",
+      "loader": "evaluation/datasets_loader.py::bbehDatasetHandler"
+    },
+    {
+      "key": "super_gpqa",
+      "hf_id": "m-a-p/SuperGPQA",
+      "config": null,
+      "split": "train",
+      "gated": false,
+      "role": "eval",
+      "used_for": "EVAL: SuperGPQA; loader iterates dataset['train'] (subsampled to 1000).",
+      "loader": "evaluation/datasets_loader.py::SuperGPQADatasetHandler"
+    },
+    {
+      "key": "gpqa",
+      "hf_id": "Idavidrein/gpqa",
+      "config": "gpqa_diamond",
+      "split": "train",
+      "gated": true,
+      "role": "eval",
+      "used_for": "EVAL: GPQA diamond. GATED: requires `huggingface-cli login` and accepting the license at https://huggingface.co/datasets/Idavidrein/gpqa . download_all.sh SKIPs it (does not hard-fail) when no auth is detected.",
+      "loader": "evaluation/datasets_loader.py::GPQA_DatasetHandler"
+    },
+    {
+      "key": "personahub",
+      "hf_id": "proj-persona/PersonaHub",
+      "config": "math",
+      "split": "train",
+      "gated": false,
+      "role": "persona",
+      "used_for": "PERSONA: the Challenger persona prompt samples 'input persona' from this set when the question format template contains 'questioner_format_with_persona'.",
+      "loader": "verl/utils/dataset.py::RLHFDataset.__init__"
+    }
+  ]
+}

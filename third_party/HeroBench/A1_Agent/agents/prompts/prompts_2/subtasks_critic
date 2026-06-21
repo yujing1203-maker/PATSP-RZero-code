@@ -1,0 +1,30 @@
+Please validate the following subtask plan for the RPG agent.
+
+Ignore:
+- Any equipment equipping actions (assume gear is automatically equipped upon crafting)
+- All resource gathering or mining actions
+- Low-level or nested crafting
+
+Check for:
+- Whether combat is possible given the available or craftable equipment.
+- Logical flow of steps.
+- That the final subtask completes the main objective.
+- Correct calculation of resource quantities in crafting (including nested recipes).
+
+High-level objective:
+{objective}
+
+Information about task related entity:
+{entity_info}
+
+Current subtasks:
+{current_subtasks}
+
+Character attributes:
+{character_stats}
+
+Inventory:
+{character_inventory}
+
+List of items that you can craft:
+{available_craft}

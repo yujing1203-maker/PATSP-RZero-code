@@ -1,0 +1,27 @@
+# Main task description:
+{objective}
+
+# Information about task related entity:
+{entity_info}
+
+# Previous variant of plan and it's critique:
+
+## Previous plan:
+{previous_plan}
+
+## Previous plan critique:
+{critique}
+
+#Character state:
+
+## General information about character:
+{character_stats}
+
+## Character equipment:
+{character_equipment}
+
+## Character inventory:
+{character_inventory}
+
+#Game world map:
+{map_content}

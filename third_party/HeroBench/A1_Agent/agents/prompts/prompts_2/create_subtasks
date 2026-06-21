@@ -1,0 +1,25 @@
+# Main task description:
+{objective}
+
+# Previous variant of plan and it's critique:
+
+## Previous plan:
+{previous_plan}
+
+## Previous plan critique:
+{critique}
+
+#Character state:
+
+## General information about character:
+{character_stats}
+
+## Character equipment:
+{character_equipment}
+
+## Character inventory:
+{character_inventory}
+
+#List of missing items:
+{available_craft}
+
