@@ -4,23 +4,24 @@
 Protocol v1 driver for R-Zero vs PATSP experiments.
 
 Current implementation:
-  - route=rzero only
-  - trainable challenger rollout stage is included
-  - monolithic solver rollout stage is included
-  - training is intentionally still behind --skip_train
+  - route=rzero
+  - LoRA training mode
+  - challenger and solver are both trainable
+  - solver is monolithic, not planner/executor
 
-R-Zero round shape:
+R-Zero round:
 
   challenger_{i-1}
       -> generate challenger candidates
-      -> probe candidates with solver_{i-1}
+      -> solver_{i-1} probes candidates
       -> build challenger rows with reward/advantage
-      -> [future] train challenger_i
+      -> train challenger_i
 
-  challenger_i / candidate tasks
-      -> solver rollouts with solver_{i-1}
+  challenger_i
+      -> generate solver-training tasks
+      -> solver_{i-1} rollouts
       -> build solver rows
-      -> [future] train solver_i
+      -> train solver_i
 
 This driver must never implement R-Zero as planner+executor.
 """
@@ -30,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -55,7 +57,7 @@ def run_cmd(cmd: List[str], *, log_path: Optional[Path] = None) -> None:
     if rc != 0:
         raise RuntimeError(
             f"Command failed rc={rc}. See log: {log_path}\n"
-            f"Command prefix: {' '.join(str(x) for x in cmd[:8])}"
+            f"Command prefix: {' '.join(str(x) for x in cmd[:10])}"
         )
 
 
@@ -71,6 +73,12 @@ def count_jsonl(path: Path) -> int:
             if line.strip():
                 n += 1
     return n
+
+
+def copytree_replace(src: Path, dst: Path) -> None:
+    if dst.exists():
+        shutil.rmtree(dst)
+    shutil.copytree(src, dst)
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -90,6 +98,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p.add_argument("--difficulty", type=float, default=0.5)
     p.add_argument("--challenger_num_prompts", type=int, default=1)
     p.add_argument("--challenger_samples_per_prompt", type=int, default=4)
+    p.add_argument("--solver_task_num_prompts", type=int, default=None)
+    p.add_argument("--solver_task_samples_per_prompt", type=int, default=None)
     p.add_argument("--probe_k", type=int, default=2)
     p.add_argument("--score_min", type=float, default=0.0)
     p.add_argument("--score_max", type=float, default=1.0)
@@ -108,25 +118,42 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     # Policy/model controls.
     p.add_argument("--policy", choices=["random", "vllm"], default="random")
     p.add_argument("--dry_run", action="store_true")
-
     p.add_argument("--base_model", default=os.environ.get("BASE_MODEL"))
 
     p.add_argument("--challenger_lora", default=None)
-    p.add_argument("--challenger_model", default=None)
-
     p.add_argument("--solver_lora", default=None)
-    p.add_argument("--solver_model", default=None)
 
     p.add_argument("--max_tokens", type=int, default=512)
     p.add_argument("--temperature", type=float, default=0.8)
     p.add_argument("--top_p", type=float, default=0.95)
     p.add_argument("--gpu_memory_utilization", type=float, default=0.85)
 
+    # Training controls.
     p.add_argument(
         "--skip_train",
         action="store_true",
-        help="Required for this protocol smoke version. Training is added later.",
+        help="Run data protocol only. No LoRA training.",
     )
+    p.add_argument("--train_epochs", type=int, default=int(os.environ.get("RZERO_TRAIN_EPOCHS", "1")))
+    p.add_argument("--train_lr", default=os.environ.get("RZERO_TRAIN_LR", "2e-6"))
+    p.add_argument("--train_max_seq_len", default=os.environ.get("RZERO_TRAIN_MAX_SEQ_LEN", "16384"))
+    p.add_argument("--train_max_rows", default=os.environ.get("RZERO_TRAIN_MAX_ROWS", "-1"))
+    p.add_argument("--train_min_abs_adv", default=os.environ.get("RZERO_TRAIN_MIN_ABS_ADV", "1e-8"))
+    p.add_argument(
+        "--objective",
+        choices=["pg", "grpo_clip"],
+        default="grpo_clip",
+    )
+    p.add_argument(
+        "--credit_mode",
+        choices=["uniform", "outcome_only", "stage_hardcoded", "routed"],
+        default="uniform",
+    )
+
+    # Initial LoRA config.
+    p.add_argument("--lora_r", type=int, default=16)
+    p.add_argument("--lora_alpha", type=int, default=32)
+    p.add_argument("--lora_dropout", type=float, default=0.05)
 
     return p.parse_args(argv)
 
@@ -147,10 +174,8 @@ def assert_challenger_candidates(path: Path, route: str) -> Dict[str, int]:
 
             if row.get("probe_route") != route:
                 n_bad_route += 1
-
             if "probe_score" not in row or "probe_rewards" not in row:
                 n_missing_reward_inputs += 1
-
             if row.get("format_ok"):
                 n_format_ok += 1
             if row.get("well_posed"):
@@ -208,7 +233,6 @@ def assert_solver_only_trajectories(path: Path) -> Dict[str, int]:
         for line in f:
             if not line.strip():
                 continue
-
             n_traj += 1
             row = json.loads(line)
             for turn in row.get("turns", []) or []:
@@ -220,10 +244,7 @@ def assert_solver_only_trajectories(path: Path) -> Dict[str, int]:
     if n_traj == 0:
         raise RuntimeError(f"No solver trajectories emitted: {path}")
     if bad_roles:
-        raise RuntimeError(
-            f"R-Zero trajectory contains non-solver roles: {bad_roles}. "
-            "This violates the monolithic solver protocol."
-        )
+        raise RuntimeError(f"R-Zero trajectory contains non-solver roles: {bad_roles}")
 
     return {"n_trajectories": n_traj, "n_solver_turns": n_turn}
 
@@ -236,7 +257,6 @@ def assert_solver_rows(path: Path) -> Dict[str, int]:
         for line in f:
             if not line.strip():
                 continue
-
             n_rows += 1
             row = json.loads(line)
             role = str(row.get("role", ""))
@@ -246,7 +266,7 @@ def assert_solver_rows(path: Path) -> Dict[str, int]:
     if n_rows == 0:
         raise RuntimeError(f"No solver rows emitted: {path}")
     if bad_roles:
-        raise RuntimeError(f"R-Zero solver rows contain non-solver roles: {bad_roles}.")
+        raise RuntimeError(f"R-Zero solver rows contain non-solver roles: {bad_roles}")
 
     return {"n_solver_rows": n_rows}
 
@@ -260,35 +280,228 @@ def append_vllm_common_args(cmd: List[str], args: argparse.Namespace) -> None:
     ]
 
 
-def append_challenger_model_args(cmd: List[str], args: argparse.Namespace) -> None:
-    if args.policy != "vllm":
-        return
+def init_lora_if_needed(
+    *,
+    args: argparse.Namespace,
+    role: str,
+    current_ref: Optional[str],
+    out_dir: Path,
+    seed: int,
+) -> str:
+    if current_ref:
+        return str(current_ref)
 
-    if args.challenger_model:
-        cmd += ["--challenger_model", args.challenger_model]
-    else:
-        if not args.base_model:
-            raise ValueError("--policy vllm requires --base_model or --challenger_model")
-        cmd += ["--base_model", args.base_model]
-        if args.challenger_lora:
-            cmd += ["--challenger_lora", args.challenger_lora]
+    out = out_dir / f"r0_{role}_lora"
+    if (out / "adapter_config.json").exists():
+        return str(out)
+
+    cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "init_lora_adapters.py"),
+        "--base_model", args.base_model,
+        "--out_dir", str(out),
+        "--role", role,
+        "--seed", str(seed),
+        "--r", str(args.lora_r),
+        "--lora_alpha", str(args.lora_alpha),
+        "--lora_dropout", str(args.lora_dropout),
+    ]
+    run_cmd(cmd, log_path=out_dir / f"r0_init_{role}.log")
+    return str(out)
 
 
-def append_solver_probe_args(cmd: List[str], args: argparse.Namespace) -> None:
-    if args.policy != "vllm":
-        return
+def train_role_lora(
+    *,
+    args: argparse.Namespace,
+    role: str,
+    rollouts_jsonl: Path,
+    lora_in: str,
+    lora_out: Path,
+    log_path: Path,
+) -> str:
+    cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "train_lora_grpo_clip_from_rollouts.py"),
+        "--base_model", args.base_model,
+        "--lora_in", str(lora_in),
+        "--rollouts_jsonl", str(rollouts_jsonl),
+        "--lora_out", str(lora_out),
+        "--objective", args.objective,
+        "--epochs", str(args.train_epochs),
+        "--credit_mode", args.credit_mode,
+        "--max_seq_len", str(args.train_max_seq_len),
+        "--max_rows", str(args.train_max_rows),
+        "--lr", str(args.train_lr),
+        "--min_abs_adv", str(args.train_min_abs_adv),
+    ]
 
-    if args.solver_model:
-        cmd += ["--solver_model", args.solver_model]
-    else:
-        if not args.base_model:
-            raise ValueError("--policy vllm requires --base_model or --solver_model")
-        cmd += ["--base_model", args.base_model]
-        if args.solver_lora:
-            cmd += ["--solver_lora", args.solver_lora]
+    try:
+        run_cmd(cmd, log_path=log_path)
+        return str(lora_out)
+    except RuntimeError:
+        txt = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        flat_markers = [
+            "No usable rollout rows",
+            "No usable examples",
+            "No optimizer update",
+            "No usable rows",
+        ]
+        if any(m in txt for m in flat_markers):
+            print(f"[protocol] {role}: flat/no-update round -> carry forward {lora_in}")
+            copytree_replace(Path(lora_in), lora_out)
+            return str(lora_out)
+        raise
+
+
+def build_challenger_candidates(
+    *,
+    args: argparse.Namespace,
+    round_dir: Path,
+    round_idx: int,
+    challenger_ref: str,
+    solver_ref: str,
+    tag: str,
+    out_candidates_jsonl: Path,
+    out_tasks_jsonl: Path,
+    samples_per_prompt: int,
+    seed: int,
+) -> Dict[str, Any]:
+    summary_json = round_dir / f"{tag}_challenger_rollouts.summary.json"
+
+    cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "build_agentic_challenger_rollouts.py"),
+        "--route", "rzero",
+        "--env", args.env,
+        "--out_candidates_jsonl", str(out_candidates_jsonl),
+        "--out_tasks_jsonl", str(out_tasks_jsonl),
+        "--summary_json", str(summary_json),
+        "--num_prompts", str(args.challenger_num_prompts),
+        "--samples_per_prompt", str(samples_per_prompt),
+        "--difficulty", str(args.difficulty),
+        "--seed", str(seed),
+        "--probe_k", str(args.probe_k),
+        "--max_steps", str(args.max_steps),
+        "--score_min", str(args.score_min),
+        "--score_max", str(args.score_max),
+        "--probe_score_metric", args.probe_score_metric,
+        "--policy", args.policy,
+    ]
+
+    if args.dry_run:
+        cmd.append("--dry_run")
+
+    append_vllm_common_args(cmd, args)
+
+    if args.policy == "vllm":
+        cmd += [
+            "--base_model", args.base_model,
+            "--challenger_lora", str(challenger_ref),
+            "--solver_lora", str(solver_ref),
+        ]
+
+    run_cmd(cmd, log_path=round_dir / f"{tag}_challenger_rollouts.log")
+    stats = assert_challenger_candidates(out_candidates_jsonl, "rzero")
+
+    if not out_tasks_jsonl.is_file() or count_jsonl(out_tasks_jsonl) == 0:
+        raise RuntimeError(
+            f"No valid challenger-produced tasks written to {out_tasks_jsonl}. "
+            "Use --score_min 0.0 --score_max 1.0 for smoke, or inspect rollout log."
+        )
+
+    stats["summary"] = json_load(summary_json) if summary_json.exists() else {}
+    return stats
+
+
+def build_challenger_rows(
+    *,
+    args: argparse.Namespace,
+    round_dir: Path,
+    tag: str,
+    candidates_jsonl: Path,
+    out_rows_jsonl: Path,
+) -> Dict[str, Any]:
+    summary_json = round_dir / f"{tag}_challenger_rows.summary.json"
+
+    cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "build_agentic_challenger_rows.py"),
+        "--candidates_jsonl", str(candidates_jsonl),
+        "--out_challenger", str(out_rows_jsonl),
+        "--summary_json", str(summary_json),
+        "--min_score", str(args.score_min),
+        "--max_score", str(args.score_max),
+        "--require_nonempty",
+    ]
+    run_cmd(cmd, log_path=round_dir / f"{tag}_challenger_rows.log")
+
+    stats = assert_challenger_rows(out_rows_jsonl)
+    stats["summary"] = json_load(summary_json) if summary_json.exists() else {}
+    return stats
+
+
+def build_solver_rollouts_and_rows(
+    *,
+    args: argparse.Namespace,
+    round_dir: Path,
+    round_idx: int,
+    solver_ref: str,
+    tasks_jsonl: Path,
+) -> Dict[str, Any]:
+    traj_jsonl = round_dir / f"r{round_idx}_traj.jsonl"
+    solver_rows_jsonl = round_dir / f"r{round_idx}_solver.jsonl"
+    solver_rows_summary = round_dir / f"r{round_idx}_solver_rows.summary.json"
+
+    rollout_cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "build_agentic_solver_rollouts.py"),
+        "--env", args.env,
+        "--tasks_jsonl", str(tasks_jsonl),
+        "--num_tasks", "0",
+        "--group_size", str(args.group_size),
+        "--max_steps", str(args.max_steps),
+        "--out_jsonl", str(traj_jsonl),
+        "--policy", args.policy,
+        "--split", args.split,
+        "--seed", str(args.seed + round_idx * 1000),
+    ]
+
+    if args.dry_run:
+        rollout_cmd.append("--dry_run")
+
+    append_vllm_common_args(rollout_cmd, args)
+
+    if args.policy == "vllm":
+        rollout_cmd += [
+            "--base_model", args.base_model,
+            "--solver_lora", str(solver_ref),
+        ]
+
+    run_cmd(rollout_cmd, log_path=round_dir / f"r{round_idx}_solver_rollouts.log")
+    traj_stats = assert_solver_only_trajectories(traj_jsonl)
+
+    rows_cmd = [
+        sys.executable,
+        str(SCRIPT_DIR / "build_agentic_solver_rows.py"),
+        "--trajectories_jsonl", str(traj_jsonl),
+        "--out_solver", str(solver_rows_jsonl),
+        "--summary_json", str(solver_rows_summary),
+        "--require_nonempty",
+    ]
+    run_cmd(rows_cmd, log_path=round_dir / f"r{round_idx}_solver_rows.log")
+    row_stats = assert_solver_rows(solver_rows_jsonl)
+
+    return {
+        "solver_traj_jsonl": str(traj_jsonl),
+        "solver_rows_jsonl": str(solver_rows_jsonl),
+        "solver_traj_stats": traj_stats,
+        "solver_row_stats": row_stats,
+        "solver_rows_summary": json_load(solver_rows_summary) if solver_rows_summary.exists() else {},
+    }
 
 
 def run_rzero_round(
+    *,
     args: argparse.Namespace,
     round_idx: int,
     challenger_ref: str,
@@ -298,156 +511,127 @@ def run_rzero_round(
     round_dir = out_dir / f"r{round_idx}"
     round_dir.mkdir(parents=True, exist_ok=True)
 
-    candidates_jsonl = round_dir / f"r{round_idx}_challenger_candidates.jsonl"
+    # A. challenger_{i-1} candidates -> challenger rows.
+    challenger_candidates_jsonl = round_dir / f"r{round_idx}_challenger_candidates.jsonl"
     challenger_rows_jsonl = round_dir / f"r{round_idx}_challenger.jsonl"
-    challenger_rows_summary = round_dir / f"r{round_idx}_challenger_rows.summary.json"
-    challenger_tasks_jsonl = round_dir / f"r{round_idx}_tasks.jsonl"
-    challenger_rollout_summary = round_dir / f"r{round_idx}_challenger_rollouts.summary.json"
+    pretrain_tasks_jsonl = round_dir / f"r{round_idx}_challenger_pretrain_tasks.jsonl"
 
-    traj_jsonl = round_dir / f"r{round_idx}_traj.jsonl"
-    solver_jsonl = round_dir / f"r{round_idx}_solver.jsonl"
-    solver_rows_summary = round_dir / f"r{round_idx}_solver_rows.summary.json"
+    cand_stats = build_challenger_candidates(
+        args=args,
+        round_dir=round_dir,
+        round_idx=round_idx,
+        challenger_ref=challenger_ref,
+        solver_ref=solver_ref,
+        tag=f"r{round_idx}_challenger",
+        out_candidates_jsonl=challenger_candidates_jsonl,
+        out_tasks_jsonl=pretrain_tasks_jsonl,
+        samples_per_prompt=args.challenger_samples_per_prompt,
+        seed=args.seed + round_idx * 100,
+    )
 
-    # 1. Challenger policy produces task candidates and receives probe results.
-    challenger_cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "build_agentic_challenger_rollouts.py"),
-        "--route", "rzero",
-        "--env", args.env,
-        "--out_candidates_jsonl", str(candidates_jsonl),
-        "--out_tasks_jsonl", str(challenger_tasks_jsonl),
-        "--summary_json", str(challenger_rollout_summary),
-        "--num_prompts", str(args.challenger_num_prompts),
-        "--samples_per_prompt", str(args.challenger_samples_per_prompt),
-        "--difficulty", str(args.difficulty),
-        "--seed", str(args.seed + round_idx * 100),
-        "--probe_k", str(args.probe_k),
-        "--max_steps", str(args.max_steps),
-        "--score_min", str(args.score_min),
-        "--score_max", str(args.score_max),
-        "--probe_score_metric", args.probe_score_metric,
-        "--policy", args.policy,
-    ]
-    if args.dry_run:
-        challenger_cmd.append("--dry_run")
-    append_vllm_common_args(challenger_cmd, args)
-    append_challenger_model_args(challenger_cmd, args)
-    append_solver_probe_args(challenger_cmd, args)
+    challenger_row_stats = build_challenger_rows(
+        args=args,
+        round_dir=round_dir,
+        tag=f"r{round_idx}",
+        candidates_jsonl=challenger_candidates_jsonl,
+        out_rows_jsonl=challenger_rows_jsonl,
+    )
 
-    run_cmd(challenger_cmd, log_path=round_dir / f"r{round_idx}_challenger_rollouts.log")
-    challenger_candidate_stats = assert_challenger_candidates(candidates_jsonl, "rzero")
-
-    if not challenger_tasks_jsonl.is_file() or count_jsonl(challenger_tasks_jsonl) == 0:
-        raise RuntimeError(
-            f"No valid challenger-produced tasks written to {challenger_tasks_jsonl}. "
-            "For smoke tests, use --score_min 0.0 --score_max 1.0 and inspect challenger rollout log."
+    # B. train challenger_i.
+    challenger_out = round_dir / f"r{round_idx}_challenger_lora"
+    if args.skip_train:
+        challenger_next = challenger_ref
+        challenger_trained = False
+    else:
+        challenger_next = train_role_lora(
+            args=args,
+            role="challenger",
+            rollouts_jsonl=challenger_rows_jsonl,
+            lora_in=challenger_ref,
+            lora_out=challenger_out,
+            log_path=round_dir / f"r{round_idx}_train_challenger.log",
         )
+        challenger_trained = True
 
-    # 2. Convert challenger candidates into trainable challenger rows.
-    challenger_rows_cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "build_agentic_challenger_rows.py"),
-        "--candidates_jsonl", str(candidates_jsonl),
-        "--out_challenger", str(challenger_rows_jsonl),
-        "--summary_json", str(challenger_rows_summary),
-        "--min_score", str(args.score_min),
-        "--max_score", str(args.score_max),
-        "--require_nonempty",
-    ]
-    run_cmd(challenger_rows_cmd, log_path=round_dir / f"r{round_idx}_challenger_rows.log")
-    challenger_row_stats = assert_challenger_rows(challenger_rows_jsonl)
+    # C. updated challenger_i produces solver-training tasks.
+    solver_task_num_prompts = (
+        args.solver_task_num_prompts
+        if args.solver_task_num_prompts is not None
+        else args.challenger_num_prompts
+    )
+    solver_task_samples_per_prompt = (
+        args.solver_task_samples_per_prompt
+        if args.solver_task_samples_per_prompt is not None
+        else args.challenger_samples_per_prompt
+    )
 
-    if not args.skip_train:
-        raise NotImplementedError(
-            "Training is intentionally not implemented in this protocol version. "
-            "Next step will add challenger train, then solver train."
+    # build_challenger_candidates uses args.challenger_num_prompts internally;
+    # override only for this call by shallow-copying the namespace.
+    solver_task_args = argparse.Namespace(**vars(args))
+    solver_task_args.challenger_num_prompts = solver_task_num_prompts
+
+    solver_task_candidates_jsonl = round_dir / f"r{round_idx}_solver_task_candidates.jsonl"
+    solver_tasks_jsonl = round_dir / f"r{round_idx}_tasks.jsonl"
+
+    solver_task_stats = build_challenger_candidates(
+        args=solver_task_args,
+        round_dir=round_dir,
+        round_idx=round_idx,
+        challenger_ref=challenger_next,
+        solver_ref=solver_ref,
+        tag=f"r{round_idx}_solver_tasks",
+        out_candidates_jsonl=solver_task_candidates_jsonl,
+        out_tasks_jsonl=solver_tasks_jsonl,
+        samples_per_prompt=solver_task_samples_per_prompt,
+        seed=args.seed + round_idx * 200,
+    )
+
+    # D. solver_{i-1} rollout on challenger_i tasks -> solver rows.
+    solver_data = build_solver_rollouts_and_rows(
+        args=args,
+        round_dir=round_dir,
+        round_idx=round_idx,
+        solver_ref=solver_ref,
+        tasks_jsonl=solver_tasks_jsonl,
+    )
+
+    solver_rows_jsonl = Path(solver_data["solver_rows_jsonl"])
+
+    # E. train solver_i.
+    solver_out = round_dir / f"r{round_idx}_solver_lora"
+    if args.skip_train:
+        solver_next = solver_ref
+        solver_trained = False
+    else:
+        solver_next = train_role_lora(
+            args=args,
+            role="solver",
+            rollouts_jsonl=solver_rows_jsonl,
+            lora_in=solver_ref,
+            lora_out=solver_out,
+            log_path=round_dir / f"r{round_idx}_train_solver.log",
         )
-
-    # 3. Use challenger-produced tasks for solver rollouts.
-    solver_rollout_cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "build_agentic_solver_rollouts.py"),
-        "--env", args.env,
-        "--tasks_jsonl", str(challenger_tasks_jsonl),
-        "--num_tasks", "0",
-        "--group_size", str(args.group_size),
-        "--max_steps", str(args.max_steps),
-        "--out_jsonl", str(traj_jsonl),
-        "--policy", args.policy,
-        "--split", args.split,
-        "--seed", str(args.seed + round_idx * 1000),
-    ]
-    if args.dry_run:
-        solver_rollout_cmd.append("--dry_run")
-    append_vllm_common_args(solver_rollout_cmd, args)
-
-    if args.policy == "vllm":
-        if args.solver_model:
-            solver_rollout_cmd += ["--solver_model", args.solver_model]
-        else:
-            solver_rollout_cmd += ["--base_model", args.base_model]
-            if args.solver_lora:
-                solver_rollout_cmd += ["--solver_lora", args.solver_lora]
-
-    run_cmd(solver_rollout_cmd, log_path=round_dir / f"r{round_idx}_solver_rollouts.log")
-    traj_stats = assert_solver_only_trajectories(traj_jsonl)
-
-    # 4. Convert solver trajectories into strict solver training rows.
-    solver_rows_cmd = [
-        sys.executable,
-        str(SCRIPT_DIR / "build_agentic_solver_rows.py"),
-        "--trajectories_jsonl", str(traj_jsonl),
-        "--out_solver", str(solver_jsonl),
-        "--summary_json", str(solver_rows_summary),
-        "--require_nonempty",
-    ]
-    run_cmd(solver_rows_cmd, log_path=round_dir / f"r{round_idx}_solver_rows.log")
-    row_stats = assert_solver_rows(solver_jsonl)
-
-    challenger_rollout_summary_obj = (
-        json_load(challenger_rollout_summary)
-        if challenger_rollout_summary.exists()
-        else {}
-    )
-    challenger_rows_summary_obj = (
-        json_load(challenger_rows_summary)
-        if challenger_rows_summary.exists()
-        else {}
-    )
-
-    solver_rollout_summary_path = round_dir / "summary.json"
-    solver_rollout_summary_obj = (
-        json_load(solver_rollout_summary_path)
-        if solver_rollout_summary_path.exists()
-        else {}
-    )
-    solver_rows_summary_obj = (
-        json_load(solver_rows_summary)
-        if solver_rows_summary.exists()
-        else {}
-    )
+        solver_trained = True
 
     return {
         "round": round_idx,
         "route": "rzero",
-        "trained": False,
+        "trained": bool(challenger_trained or solver_trained),
+        "challenger_trained": challenger_trained,
+        "solver_trained": solver_trained,
         "challenger_in": challenger_ref,
-        "challenger_out": challenger_ref,
+        "challenger_out": challenger_next,
         "solver_in": solver_ref,
-        "solver_out": solver_ref,
-        "challenger_candidates_jsonl": str(candidates_jsonl),
+        "solver_out": solver_next,
+        "challenger_candidates_jsonl": str(challenger_candidates_jsonl),
         "challenger_rows_jsonl": str(challenger_rows_jsonl),
-        "challenger_tasks_jsonl": str(challenger_tasks_jsonl),
-        "solver_traj_jsonl": str(traj_jsonl),
-        "solver_rows_jsonl": str(solver_jsonl),
-        "challenger_candidate_stats": challenger_candidate_stats,
+        "challenger_pretrain_tasks_jsonl": str(pretrain_tasks_jsonl),
+        "solver_task_candidates_jsonl": str(solver_task_candidates_jsonl),
+        "challenger_tasks_jsonl": str(solver_tasks_jsonl),
+        "challenger_candidate_stats": cand_stats,
         "challenger_row_stats": challenger_row_stats,
-        "solver_traj_stats": traj_stats,
-        "solver_row_stats": row_stats,
-        "challenger_rollout_summary": challenger_rollout_summary_obj,
-        "challenger_rows_summary": challenger_rows_summary_obj,
-        "solver_rollout_summary": solver_rollout_summary_obj,
-        "solver_rows_summary": solver_rows_summary_obj,
+        "solver_task_stats": solver_task_stats,
+        **solver_data,
     }
 
 
@@ -455,18 +639,35 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
     if args.route != "rzero":
-        raise ValueError("Initial protocol driver supports only --route rzero")
-
-    if not args.skip_train:
-        raise NotImplementedError(
-            "Current driver validates challenger->solver data protocol only. Use --skip_train."
-        )
+        raise ValueError("Current protocol driver supports only --route rzero")
 
     out_dir = Path(args.out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    challenger_ref = args.challenger_model or args.challenger_lora or args.base_model or "random_challenger"
-    solver_ref = args.solver_model or args.solver_lora or args.base_model or "random_solver"
+    if not args.skip_train:
+        if args.policy != "vllm":
+            raise ValueError("Real training requires --policy vllm")
+        if not args.base_model:
+            raise ValueError("Real training requires --base_model or BASE_MODEL env var")
+
+    if args.skip_train:
+        challenger_ref = args.challenger_lora or args.base_model or "random_challenger"
+        solver_ref = args.solver_lora or args.base_model or "random_solver"
+    else:
+        challenger_ref = init_lora_if_needed(
+            args=args,
+            role="challenger",
+            current_ref=args.challenger_lora,
+            out_dir=out_dir,
+            seed=args.seed + 11,
+        )
+        solver_ref = init_lora_if_needed(
+            args=args,
+            role="solver",
+            current_ref=args.solver_lora,
+            out_dir=out_dir,
+            seed=args.seed + 22,
+        )
 
     rounds: List[Dict[str, Any]] = []
 
@@ -479,14 +680,17 @@ def main(argv: Optional[List[str]] = None) -> None:
         )
         rounds.append(rec)
 
+        challenger_ref = rec["challenger_out"]
+        solver_ref = rec["solver_out"]
+
     rounds_path = out_dir / "rounds.json"
     with rounds_path.open("w", encoding="utf-8") as f:
         json.dump(
             {
                 "route": "rzero",
                 "env": args.env,
-                "protocol": "trainable_challenger_to_monolithic_solver_smoke",
-                "trained": False,
+                "protocol": "trainable_challenger_monolithic_solver_lora",
+                "trained": not args.skip_train,
                 "rounds": rounds,
             },
             f,
@@ -495,7 +699,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         )
 
     print(f"\n[protocol] wrote {rounds_path}")
-    print("[protocol] OK: challenger candidate -> challenger rows -> solver rows smoke finished")
+    print("[protocol] OK: R-Zero challenger-solver protocol finished")
 
 
 if __name__ == "__main__":
