@@ -461,6 +461,42 @@ def in_band(score: float, args: argparse.Namespace) -> bool:
     return float(args.score_min) <= float(score) <= float(args.score_max)
 
 
+
+def cleanup_policy_memory(obj: Any = None) -> None:
+    """Best-effort cleanup before loading a second full model."""
+    try:
+        if obj is not None:
+            del obj
+    except Exception:
+        pass
+
+    try:
+        import gc
+        gc.collect()
+    except Exception:
+        pass
+
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+    except Exception:
+        pass
+
+
+def default_probe_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "probe_route": args.route,
+        "probe_score": 0.0,
+        "probe_score_metric": args.probe_score_metric,
+        "probe_rewards": [],
+        "probe_mean_reward": 0.0,
+        "probe_solve_rate": 0.0,
+        "probe_k": int(max(1, int(args.probe_k))),
+    }
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
@@ -481,106 +517,132 @@ def main(argv: Optional[List[str]] = None) -> None:
     rng = random.Random(args.seed)
     env = build_env(args)
     reference_task = build_reference_task(env, args, rng)
+
+    # ------------------------------------------------------------------ #
+    # Phase 1: challenger model only generates candidate task completions.
+    # ------------------------------------------------------------------ #
     challenger_policy = build_challenger_policy(args, env)
 
+    rows: List[Dict[str, Any]] = []
     n_candidates = 0
     n_format_ok = 0
     n_well_posed = 0
+    bad_reasons: Dict[str, int] = {}
+
+    for prompt_index in range(max(1, int(args.num_prompts))):
+        messages = build_challenger_messages(
+            env=env,
+            args=args,
+            prompt_index=prompt_index,
+            reference_task=reference_task,
+        )
+        prompt = messages_to_prompt(messages)
+        uid = f"{args.env}_{args.route}_challenger_prompt_{prompt_index:05d}"
+
+        for sample_index in range(max(1, int(args.samples_per_prompt))):
+            completion = challenger_policy.act(messages)
+            n_candidates += 1
+
+            format_ok, task, task_obj, parse_reason = parse_task_completion(completion)
+            if format_ok:
+                n_format_ok += 1
+            else:
+                bad_reasons[parse_reason] = bad_reasons.get(parse_reason, 0) + 1
+
+            well_posed = False
+            well_reason = "not_parsed"
+            task_for_row: Any = task_obj
+            task_for_probe: Optional[Dict[str, Any]] = None
+
+            if task is not None:
+                task.task_id = f"{task.task_id}-p{prompt_index:05d}-s{sample_index:05d}"
+                task.info = dict(task.info or {})
+                task.info["challenger_uid"] = uid
+                task.info["challenger_sample_index"] = int(sample_index)
+                task.info["challenger_route"] = args.route
+
+                well_posed, well_reason = safe_well_posed(env, task)
+                if well_posed:
+                    n_well_posed += 1
+                    task_for_probe = task_to_dict(task)
+                    task_for_row = task_for_probe
+                else:
+                    bad_reasons[well_reason] = bad_reasons.get(well_reason, 0) + 1
+
+            row = {
+                "uid": uid,
+                "sample_index": int(sample_index),
+                "prompt_index": int(prompt_index),
+                "prompt": prompt,
+                "completion": completion,
+                "format_ok": bool(format_ok),
+                "parse_reason": parse_reason,
+                "well_posed": bool(well_posed),
+                "well_posed_reason": well_reason,
+                "task": task_for_row,
+                "env": args.env,
+                "route": args.route,
+                "difficulty": float(args.difficulty),
+                "score_min": float(args.score_min),
+                "score_max": float(args.score_max),
+                "_task_for_probe": task_for_probe,
+                **default_probe_payload(args),
+            }
+            rows.append(row)
+
+    # Important for full-param mode:
+    # release challenger engine before loading solver engine for probing.
+    cleanup_policy_memory(challenger_policy)
+
+    # ------------------------------------------------------------------ #
+    # Phase 2: probe parsed/well-posed tasks with current solver/PATSP.
+    # ------------------------------------------------------------------ #
     n_probed = 0
     n_in_band = 0
     n_valid_tasks_written = 0
-    bad_reasons: Dict[str, int] = {}
+    valid_tasks: List[Dict[str, Any]] = []
 
-    task_f = out_tasks.open("w", encoding="utf-8") if out_tasks else None
+    for row in rows:
+        task_dict = row.get("_task_for_probe")
 
-    try:
-        with out_candidates.open("w", encoding="utf-8") as cand_f:
-            for prompt_index in range(max(1, int(args.num_prompts))):
-                messages = build_challenger_messages(
+        if task_dict is not None:
+            try:
+                task = task_from_dict(task_dict)
+                probe = probe_task(
                     env=env,
+                    task=task,
                     args=args,
-                    prompt_index=prompt_index,
-                    reference_task=reference_task,
+                    base_seed=args.seed + int(row["prompt_index"]) * 10000 + int(row["sample_index"]),
                 )
-                prompt = messages_to_prompt(messages)
-                uid = f"{args.env}_{args.route}_challenger_prompt_{prompt_index:05d}"
+                row.update(probe)
+                n_probed += 1
 
-                for sample_index in range(max(1, int(args.samples_per_prompt))):
-                    completion = challenger_policy.act(messages)
-                    n_candidates += 1
+                if in_band(float(row["probe_score"]), args):
+                    n_in_band += 1
+                    valid_tasks.append(task_dict)
+                    n_valid_tasks_written += 1
+            except Exception as e:
+                reason = f"probe_error:{type(e).__name__}:{e}"
+                row["probe_error"] = reason
+                bad_reasons[reason] = bad_reasons.get(reason, 0) + 1
 
-                    format_ok, task, task_obj, parse_reason = parse_task_completion(completion)
-                    if format_ok:
-                        n_format_ok += 1
-                    else:
-                        bad_reasons[parse_reason] = bad_reasons.get(parse_reason, 0) + 1
+        row.pop("_task_for_probe", None)
 
-                    well_posed = False
-                    well_reason = "not_parsed"
-                    probe = {
-                        "probe_route": args.route,
-                        "probe_score": 0.0,
-                        "probe_score_metric": args.probe_score_metric,
-                        "probe_rewards": [],
-                        "probe_mean_reward": 0.0,
-                        "probe_solve_rate": 0.0,
-                        "probe_k": int(max(1, int(args.probe_k))),
-                    }
+        if args.verbose:
+            print(
+                f"[candidate] uid={row['uid']} sample={row['sample_index']} "
+                f"format_ok={row['format_ok']} well_posed={row['well_posed']} "
+                f"score={float(row.get('probe_score', 0.0)):.4f}"
+            )
 
-                    if task is not None:
-                        task.task_id = f"{task.task_id}-p{prompt_index:05d}-s{sample_index:05d}"
-                        task.info = dict(task.info or {})
-                        task.info["challenger_uid"] = uid
-                        task.info["challenger_sample_index"] = int(sample_index)
-                        task.info["challenger_route"] = args.route
+    with out_candidates.open("w", encoding="utf-8") as cand_f:
+        for row in rows:
+            cand_f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-                        well_posed, well_reason = safe_well_posed(env, task)
-                        if well_posed:
-                            n_well_posed += 1
-                            probe = probe_task(
-                                env=env,
-                                task=task,
-                                args=args,
-                                base_seed=args.seed + prompt_index * 10000 + sample_index,
-                            )
-                            n_probed += 1
-                            if in_band(float(probe["probe_score"]), args):
-                                n_in_band += 1
-                                if task_f is not None:
-                                    task_f.write(json.dumps(task_to_dict(task), ensure_ascii=False) + "\n")
-                                    n_valid_tasks_written += 1
-                        else:
-                            bad_reasons[well_reason] = bad_reasons.get(well_reason, 0) + 1
-
-                    row = {
-                        "uid": uid,
-                        "sample_index": int(sample_index),
-                        "prompt_index": int(prompt_index),
-                        "prompt": prompt,
-                        "completion": completion,
-                        "format_ok": bool(format_ok),
-                        "parse_reason": parse_reason,
-                        "well_posed": bool(well_posed),
-                        "well_posed_reason": well_reason,
-                        "task": task_to_dict(task) if task is not None else task_obj,
-                        "env": args.env,
-                        "route": args.route,
-                        "difficulty": float(args.difficulty),
-                        "score_min": float(args.score_min),
-                        "score_max": float(args.score_max),
-                        **probe,
-                    }
-                    cand_f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-                    if args.verbose:
-                        print(
-                            f"[candidate] uid={uid} sample={sample_index} "
-                            f"format_ok={format_ok} well_posed={well_posed} "
-                            f"score={row['probe_score']:.4f}"
-                        )
-    finally:
-        if task_f is not None:
-            task_f.close()
+    if out_tasks is not None:
+        with out_tasks.open("w", encoding="utf-8") as task_f:
+            for task_dict in valid_tasks:
+                task_f.write(json.dumps(task_dict, ensure_ascii=False) + "\n")
 
     summary = {
         "out_candidates_jsonl": str(out_candidates),
@@ -601,6 +663,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         "probe_score_metric": args.probe_score_metric,
         "score_min": float(args.score_min),
         "score_max": float(args.score_max),
+        "two_phase_generation_then_probe": True,
     }
 
     with summary_path.open("w", encoding="utf-8") as f:
