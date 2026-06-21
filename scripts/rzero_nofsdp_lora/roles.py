@@ -758,5 +758,119 @@ def _smoke() -> None:
     print("=== all smoke assertions passed ===")
 
 
+
+# --------------------------------------------------------------------------- #
+# Solver (R-Zero monolithic role)                                               #
+# --------------------------------------------------------------------------- #
+class Solver:
+    """Monolithic R-Zero solver role.
+
+    This role is for the R-Zero route only.
+
+    It reads:
+      - task specification
+      - machine-checkable constraints
+      - current observation
+      - available actions
+      - recent action history
+      - optional verifier feedback
+
+    It emits exactly one <action>...</action> block.
+
+    It does NOT receive a plan and does NOT decompose the task into subgoals.
+    """
+
+    SYSTEM = (
+        "You are a single SOLVER agent in a verifier-grounded environment.\n"
+        "Your job is to solve the task by directly choosing the next concrete action "
+        "from the current observation.\n"
+        "Rules:\n"
+        "  1. Output exactly one action wrapped in " + ACT_OPEN + " ... " + ACT_CLOSE
+        + " and nothing else.\n"
+        "  2. Use one of the available actions when they are provided.\n"
+        "  3. Take only ONE action. Do not chain multiple actions.\n"
+        "  4. You may reason internally, but do not output reasoning, plans, explanations, "
+        "or extra markup.\n"
+        "  5. If the task appears complete, use the environment's finalization/submission "
+        "action when available.\n"
+        "Example:\n"
+        + ACT_OPEN + "finalize" + ACT_CLOSE + "\n"
+    )
+
+    @staticmethod
+    def build_messages(
+        task: Task,
+        obs: Observation,
+        history: List[Any],
+        feedback: Optional[str] = None,
+    ) -> List[Dict[str, str]]:
+        """Build chat messages for one monolithic solver action.
+
+        The solver sees the task, current observation, available actions, and recent
+        action history. It does not receive a top-level plan.
+        """
+        spec = getattr(task, "spec", {}) or {}
+        constraints = getattr(task, "constraints", {}) or {}
+
+        problem_text = ""
+        if isinstance(spec, dict):
+            problem_text = str(
+                spec.get("text")
+                or spec.get("problem")
+                or spec.get("statement")
+                or ""
+            )
+        if not problem_text:
+            problem_text = str(spec)
+
+        parts: List[str] = []
+        parts.append("TASK:")
+        parts.append(problem_text.strip() or "(no textual task specification provided)")
+        parts.append("")
+        parts.append("MACHINE-CHECKABLE CONSTRAINTS:")
+        parts.append(str(constraints))
+        parts.append("")
+        parts.append("CURRENT OBSERVATION:")
+        obs_text = getattr(obs, "text", "") if obs is not None else ""
+        parts.append(str(obs_text).strip() or "(no observation text)")
+
+        avail = list(getattr(obs, "available_actions", []) or []) if obs is not None else []
+        parts.append("")
+        parts.append("AVAILABLE ACTIONS THIS TURN:")
+        parts.append("  " + (", ".join(str(a) for a in avail) if avail else "(none provided)"))
+
+        if history:
+            parts.append("")
+            parts.append("RECENT ACTION HISTORY (most recent last):")
+            for h in Executor._render_history(history):
+                parts.append("  " + h)
+
+        if feedback:
+            parts.append("")
+            parts.append("VERIFIER FEEDBACK:")
+            parts.append(str(feedback).strip())
+
+        parts.append("")
+        parts.append(
+            "Choose the next concrete action now. Wrap it in "
+            + ACT_OPEN + " ... " + ACT_CLOSE
+            + " and output nothing else."
+        )
+
+        return [
+            {"role": "system", "content": Solver.SYSTEM},
+            {"role": "user", "content": "\n".join(parts)},
+        ]
+
+    @staticmethod
+    def parse_action(text: str) -> Action:
+        """Parse a monolithic solver action.
+
+        Reuse the existing action parser so all environments receive the same Action
+        contract as before: Action(raw=..., parsed=...).
+        """
+        return Executor.parse_action(text)
+
+
 if __name__ == "__main__":
     _smoke()
