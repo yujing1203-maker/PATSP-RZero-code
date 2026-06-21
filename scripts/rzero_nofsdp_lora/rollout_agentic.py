@@ -292,10 +292,10 @@ class VLLMPolicy(Policy):
     """vLLM-backed policy with a per-role LoRA adapter.
 
     LAZY-imports vllm ONLY inside __init__/act so importing this module is torch/vllm-free.
-    role in {"planner","executor","solver"} selects the LoRA int_id (planner=41, executor=42, solver=43).
+    role in {"planner","executor","solver","challenger"} selects the LoRA int_id (planner=41, executor=42, solver=43, challenger=44).
     """
 
-    ROLE_INT_IDS = {"planner": 41, "executor": 42, "solver": 43}
+    ROLE_INT_IDS = {"planner": 41, "executor": 42, "solver": 43, "challenger": 44}
 
     def __init__(
         self,
