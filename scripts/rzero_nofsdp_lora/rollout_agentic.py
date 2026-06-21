@@ -43,6 +43,7 @@ from envs.base import Task, Observation, Action, StepResult, AgenticEnv  # noqa:
 from roles import (  # noqa: E402
     Planner,
     Executor,
+    Solver,
     Subgoal,
     PLAN_OPEN,
     PLAN_CLOSE,
@@ -117,6 +118,12 @@ class PlannerTurn(Turn):
 class ExecutorTurn(Turn):
     def __init__(self, **kw):
         kw["role"] = "executor"
+        super().__init__(**kw)
+
+
+class SolverTurn(Turn):
+    def __init__(self, **kw):
+        kw["role"] = "solver"
         super().__init__(**kw)
 
 
@@ -548,6 +555,142 @@ def _replan_feedback(last: StepResult) -> str:
         return "Last action was invalid: " + str(last.info.get("invalid_reason", "")) + \
                ". Re-plan a valid next step."
     return "A verifier event requires re-planning."
+
+
+
+# --------------------------------------------------------------------------- #
+# The monolithic solver loop -- R-Zero route                                    #
+# --------------------------------------------------------------------------- #
+def _solver_feedback(last: Optional[StepResult]) -> Optional[str]:
+    """Verifier feedback for the monolithic solver.
+
+    This is not a re-planning instruction. It is only compact feedback about the
+    last environment transition so the single solver can choose a recovery action.
+    """
+    if last is None:
+        return None
+
+    regressed = []
+    for r in last.stage_records:
+        if r.before == "sat" and r.after == "unsat":
+            regressed.append(f"{r.predicate_id} changed sat->unsat ({r.failure_type})")
+
+    if regressed:
+        return "Verifier feedback: " + "; ".join(regressed) + ". Choose a recovery action."
+
+    if last.info.get("invalid_action"):
+        return "Verifier feedback: last action was invalid: " + str(
+            last.info.get("invalid_reason", "")
+        )
+
+    if last.info:
+        return "Verifier feedback: " + str(last.info)
+
+    return "Verifier feedback: previous action did not complete the task."
+
+
+def run_solver_episode(
+    env: AgenticEnv,
+    task: Task,
+    solver: Any = Solver,
+    solver_policy: Policy = None,
+    max_steps: int = 16,
+    sample_index: int = 0,
+) -> Trajectory:
+    """Run one monolithic R-Zero solver episode.
+
+    Unlike run_episode(...), this function does not create a plan and does not
+    call an executor. A single solver policy directly emits one environment
+    action per step.
+
+    Output trajectory turns have role="solver".
+    """
+    if solver_policy is None:
+        raise ValueError("run_solver_episode requires solver_policy")
+
+    predicate_library = list(env.predicate_library(task))
+    task.info = dict(task.info)
+    task.info.setdefault("predicate_library", predicate_library)
+
+    if isinstance(solver_policy, RandomPolicy):
+        solver_policy.bind_task(task)
+
+    obs = env.reset(task)
+    turns: List[Turn] = []
+    history: List[dict] = []
+    stage_records_global: List[StageRecord] = []
+
+    turn_index = 0
+    last: Optional[StepResult] = None
+    done = False
+    n_verifier_feedback_events = 0
+
+    for _step in range(max_steps):
+        feedback = None
+        if last is not None and env.needs_replan(last):
+            feedback = _solver_feedback(last)
+            n_verifier_feedback_events += 1
+
+        solver_msgs = solver.build_messages(
+            task=task,
+            obs=obs,
+            history=history,
+            feedback=feedback,
+        )
+        act_text = solver_policy.act(solver_msgs)
+        action = solver.parse_action(act_text)
+
+        step = env.step(action)
+
+        span = _action_span(action, act_text)
+        solver_records = _attach_span(step.stage_records, span)
+        stage_records_global.extend(solver_records)
+
+        turns.append(SolverTurn(
+            boundary=0,
+            turn_index=turn_index,
+            prompt=_messages_to_prompt(solver_msgs),
+            completion=act_text,
+            stage_records=solver_records,
+            info={
+                "action_parsed": dict(action.parsed),
+                "step_info": dict(step.info),
+                "done": bool(step.done),
+                "feedback": feedback,
+            },
+        ))
+
+        history.append({
+            "turn_index": turn_index,
+            "action_raw": action.raw,
+            "parsed": dict(action.parsed),
+        })
+
+        turn_index += 1
+        obs = step.obs
+        last = step
+
+        if step.done:
+            done = True
+            break
+
+    terminal = float(env.verify_final())
+
+    return Trajectory(
+        task_id=task.task_id,
+        turns=turns,
+        terminal_reward=terminal,
+        predicate_library=predicate_library,
+        stage_records_global=stage_records_global,
+        sample_index=int(sample_index),
+        info={
+            "n_turns": len(turns),
+            "mode": "monolithic_solver",
+            "max_steps": max_steps,
+            "reached_done": done,
+            "n_verifier_feedback_events": n_verifier_feedback_events,
+        },
+    )
 
 
 # --------------------------------------------------------------------------- #
