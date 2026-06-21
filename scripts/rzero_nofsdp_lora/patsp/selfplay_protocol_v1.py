@@ -455,6 +455,7 @@ def build_challenger_candidates(
     out_tasks_jsonl: Path,
     samples_per_prompt: int,
     seed: int,
+    require_valid_tasks: bool,
 ) -> Dict[str, Any]:
     summary_json = round_dir / f"{tag}_challenger_rollouts.summary.json"
 
@@ -500,10 +501,13 @@ def build_challenger_candidates(
     stats = assert_challenger_candidates(out_candidates_jsonl, "rzero")
 
     if not out_tasks_jsonl.is_file() or count_jsonl(out_tasks_jsonl) == 0:
-        raise RuntimeError(
+        msg = (
             f"No valid challenger-produced tasks written to {out_tasks_jsonl}. "
             "Use --score_min 0.0 --score_max 1.0 for smoke, or inspect rollout log."
         )
+        if require_valid_tasks:
+            raise RuntimeError(msg)
+        print(f"[protocol] WARNING: {msg} Continuing because this is challenger-training candidate collection.")
 
     stats["summary"] = json_load(summary_json) if summary_json.exists() else {}
     return stats
@@ -628,6 +632,7 @@ def run_rzero_round(
         out_tasks_jsonl=pretrain_tasks_jsonl,
         samples_per_prompt=args.challenger_samples_per_prompt,
         seed=args.seed + round_idx * 100,
+        require_valid_tasks=False,
     )
 
     challenger_row_stats = build_challenger_rows(
@@ -664,7 +669,7 @@ def run_rzero_round(
                 lora_out=challenger_out,
                 log_path=round_dir / f"r{round_idx}_train_challenger.log",
             )
-        challenger_trained = True
+        challenger_trained = str(challenger_next) != str(challenger_ref)
 
     # C. updated challenger_i produces solver-training tasks.
     solver_task_num_prompts = (
@@ -697,6 +702,7 @@ def run_rzero_round(
         out_tasks_jsonl=solver_tasks_jsonl,
         samples_per_prompt=solver_task_samples_per_prompt,
         seed=args.seed + round_idx * 200,
+        require_valid_tasks=True,
     )
 
     # D. solver_{i-1} rollout on challenger_i tasks -> solver rows.
@@ -736,7 +742,7 @@ def run_rzero_round(
                 lora_out=solver_out,
                 log_path=round_dir / f"r{round_idx}_train_solver.log",
             )
-        solver_trained = True
+        solver_trained = str(solver_next) != str(solver_ref)
 
     return {
         "round": round_idx,
