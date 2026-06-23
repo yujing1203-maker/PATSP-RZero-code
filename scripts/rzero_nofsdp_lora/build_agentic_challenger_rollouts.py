@@ -345,64 +345,135 @@ def build_rzero_probe_policy(args: argparse.Namespace, env: AgenticEnv, seed: in
     )
 
 
+
+def _same_model_ref(a, b) -> bool:
+    if not a or not b:
+        return False
+    try:
+        return Path(str(a)).resolve() == Path(str(b)).resolve()
+    except Exception:
+        return str(a) == str(b)
+
+
+def _cleanup_policy_memory(obj=None) -> None:
+    """Best-effort cleanup before loading a second vLLM engine.
+
+    This is important for PATSP challenger probing: generation may use a
+    challenger engine, then probing needs planner/executor engines. On a 24GB
+    GPU, stale vLLM references can make the next engine fail at startup.
+    """
+    try:
+        if obj is not None:
+            del obj
+    except Exception:
+        pass
+
+    try:
+        import gc
+        gc.collect()
+    except Exception:
+        pass
+
+    try:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+    except Exception:
+        pass
+
+
 def build_patsp_probe_policies(args: argparse.Namespace, env: AgenticEnv, seed: int):
+    """Build PATSP planner/executor probe policies.
+
+    PLAN-AND-ACT requires two roles semantically, but it does not require two
+    separate vLLM engines when planner/executor share the same model. Sharing
+    is critical for 24GB GPUs: challenger probing often otherwise tries to keep
+    challenger + planner + executor engines on GPU 0.
+    """
     if args.policy == "random" or args.dry_run:
         return (
-            RandomPolicy(env, task=None, seed=6000 + seed),
-            RandomPolicy(env, task=None, seed=7000 + seed),
+            RandomPolicy(env, task=None, seed=seed + 41),
+            RandomPolicy(env, task=None, seed=seed + 42),
         )
 
+    if args.policy != "vllm":
+        raise ValueError(f"Unsupported policy for PATSP probe: {args.policy}")
+
+    # Full-param mode: if planner and executor are the same checkpoint, use one
+    # shared vLLM engine with different role int_ids.
     if args.planner_model and args.executor_model:
+        if _same_model_ref(args.planner_model, args.executor_model):
+            planner_policy = VLLMPolicy(
+                role="planner",
+                lora=None,
+                model=args.planner_model,
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
+            )
+            executor_policy = VLLMPolicy(
+                role="executor",
+                lora=None,
+                llm=planner_policy.llm,
+                tokenizer=getattr(planner_policy, "tokenizer", None),
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                max_tokens=args.max_tokens,
+                temperature=args.temperature,
+                top_p=args.top_p,
+            )
+            return planner_policy, executor_policy
+
+        # True separate full checkpoints. This may require more GPU engineering
+        # in later multi-round full-param PATSP, but keep the path available.
         planner_policy = VLLMPolicy(
             role="planner",
             lora=None,
             model=args.planner_model,
+            gpu_memory_utilization=args.gpu_memory_utilization,
             max_tokens=args.max_tokens,
             temperature=args.temperature,
             top_p=args.top_p,
-            gpu_memory_utilization=args.gpu_memory_utilization,
-            enable_lora=False,
         )
         executor_policy = VLLMPolicy(
             role="executor",
             lora=None,
             model=args.executor_model,
+            gpu_memory_utilization=args.gpu_memory_utilization,
             max_tokens=args.max_tokens,
             temperature=args.temperature,
             top_p=args.top_p,
-            gpu_memory_utilization=args.gpu_memory_utilization,
-            enable_lora=False,
         )
         return planner_policy, executor_policy
 
     if not args.base_model:
         raise ValueError("--route patsp --policy vllm requires --base_model or planner/executor models")
 
-    planner_lora = args.planner_lora or args.executor_lora
-    executor_lora = args.executor_lora or args.planner_lora
+    # Shared-base path. This is the normal one-round cold-start PATSP smoke:
+    # planner and executor are semantically separate, but share one base engine.
+    planner_lora = args.planner_lora or None
+    executor_lora = args.executor_lora or None
 
     planner_policy = VLLMPolicy(
         role="planner",
         lora=planner_lora,
         model=args.base_model,
+        gpu_memory_utilization=args.gpu_memory_utilization,
         max_tokens=args.max_tokens,
         temperature=args.temperature,
         top_p=args.top_p,
-        gpu_memory_utilization=args.gpu_memory_utilization,
-        enable_lora=bool(planner_lora),
     )
-
     executor_policy = VLLMPolicy(
         role="executor",
         lora=executor_lora,
-        model=args.base_model,
+        llm=planner_policy.llm,
+        tokenizer=getattr(planner_policy, "tokenizer", None),
+        gpu_memory_utilization=args.gpu_memory_utilization,
         max_tokens=args.max_tokens,
         temperature=args.temperature,
         top_p=args.top_p,
-        gpu_memory_utilization=args.gpu_memory_utilization,
-        enable_lora=bool(executor_lora),
     )
-
     return planner_policy, executor_policy
 
 
@@ -595,6 +666,16 @@ def main(argv: Optional[List[str]] = None) -> None:
     cleanup_policy_memory(challenger_policy)
 
     # ------------------------------------------------------------------ #
+    # Release challenger generation engine before loading probe policy.
+    # This prevents PATSP from keeping challenger+planner+executor engines
+    # simultaneously on a 24GB GPU.
+    try:
+        _cleanup_policy_memory(challenger_policy)
+        challenger_policy = None
+    except NameError:
+        _cleanup_policy_memory()
+
+
     # Phase 2: probe parsed/well-posed tasks with current solver/PATSP.
     # ------------------------------------------------------------------ #
     n_probed = 0
