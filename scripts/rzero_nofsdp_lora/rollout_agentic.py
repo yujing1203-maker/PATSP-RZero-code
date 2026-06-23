@@ -224,8 +224,9 @@ class RandomPolicy(Policy):
                 lines.append(f"{i}. [{pid}] Make predicate {pid} satisfied.")
         else:
             lines.append("1. [subgoal_1] Satisfy the task constraints.")
-        # last subgoal: finalize once predicates hold
-        lines.append(f"{len(pids) + 1 if pids else 2}. finalize once all predicates are satisfied.")
+        # Do NOT add a synthetic "finalize" subgoal: every Planner subgoal must map
+        # to a verifier predicate from L_env. Task completion is an Executor action,
+        # not a Planner predicate.
         lines.append(PLAN_CLOSE)
         return "\n".join(lines)
 
