@@ -1230,9 +1230,10 @@ def main(argv: Optional[List[str]] = None) -> None:
             if not (args.base_model or args.challenger_model or args.planner_model or args.executor_model):
                 raise ValueError("Full-param PATSP training requires --base_model or role model paths")
             if int(args.rounds) > 1:
-                raise ValueError(
-                    "Full-param PATSP protocol v1 currently supports one-round smoke only. "
-                    "Multi-round needs separate planner/executor full-model serving."
+                print(
+                    "[protocol] WARNING: PATSP full-param multi-round is enabled experimentally; "
+                    "planner/executor full checkpoints will be served as separate vLLM models. "
+                    "Use conservative gpu_memory_utilization if OOM occurs."
                 )
 
     rounds: List[Dict[str, Any]] = []
