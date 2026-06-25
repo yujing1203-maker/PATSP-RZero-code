@@ -74,6 +74,38 @@ def _parse_goal_progress(s: str) -> List[Dict[str, Any]]:
     return out
 
 
+def _scienceworld_command_guidance(instr: str, sw_obs: str) -> str:
+    """Task-specific command grounding hints shown to the executor.
+
+    ScienceWorld exposes a free-form text command interface. The model often
+    follows the high-level instruction too literally and focuses on the first
+    visible noun in the room. For find-living-thing tasks this is dangerous:
+    hallway observations often contain decoys such as drawings, beds, lights,
+    paintings, or air, while the agent must navigate first to find an actually
+    living object.
+
+    These hints do not change the verifier or reward. They only make the valid
+    action strategy explicit in the observation text.
+    """
+    instr_l = (instr or "").lower()
+    obs_l = (sw_obs or "").lower()
+    hints = [
+        "Use ONE exact ScienceWorld command, not an explanation.",
+        "Common commands include: open door to <room>, go to <room>, focus on <visible object>, take <visible object>, put <object> in <box>.",
+        "Choose objects that are explicitly visible in the OBSERVATION. Do not invent objects.",
+    ]
+    if "living thing" in instr_l:
+        hints.extend([
+            "For find-living-thing: drawings, paintings, beds, air, light bulbs, boxes, and furniture are NOT living things.",
+            "If the current room does not visibly contain a living thing, do NOT focus on a non-living object; navigate first.",
+            "Prefer searching rooms such as greenhouse, kitchen, living room, bedroom, or workshop by opening a door and going there.",
+            "Only use 'focus on <object>' after a plausible living thing is visible in the current observation.",
+        ])
+        if "greenhouse" in obs_l:
+            hints.append("A greenhouse is a good place to search for living things; consider opening/go to greenhouse before focusing on hallway decoys.")
+    return "\n".join(f"  - {h}" for h in hints)
+
+
 class ScienceWorldEnv(AgenticEnv):
     def __init__(self, seed: int = 0):
         self._seed = int(seed)
@@ -164,11 +196,21 @@ class ScienceWorldEnv(AgenticEnv):
             f"  [{'x' if self._prev_done.get(pid) else ' '}] {self._pred_desc.get(pid,'')}"
             for pid in self._preds
         )
+        guidance = _scienceworld_command_guidance(instr, sw_obs)
         text = (f"TASK: {instr}\n\nSUB-GOALS (in order):\n{checklist}\n\n"
                 f"OBSERVATION:\n{sw_obs}\n\n{inv}\n"
+                f"ACTION GUIDANCE:\n{guidance}\n\n"
                 f"Reply with ONE ScienceWorld command (e.g. 'open door to kitchen', "
                 f"'go to kitchen', 'focus on water', 'activate stove').")
-        return Observation(text=text, available_actions=["<ScienceWorld command>"],
+        return Observation(text=text, available_actions=[
+            "open door to <room>",
+            "go to <room>",
+            "focus on <visible object>",
+            "take <visible object>",
+            "put <object> in <box>",
+            "activate <object>",
+            "<ScienceWorld command>",
+        ],
                            state={"score": self._score, "task": self._task.task_id if self._task else ""})
 
     def step(self, action: Action) -> StepResult:
