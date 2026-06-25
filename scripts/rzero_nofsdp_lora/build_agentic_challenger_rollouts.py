@@ -157,6 +157,127 @@ def task_from_dict(obj: Dict[str, Any]) -> Task:
     )
 
 
+
+_TEXTCRAFT_BASE_POOL = [
+    "log", "stone", "iron_ore", "coal", "sand", "clay", "wheat", "leather",
+    "feather", "flint", "gold_ore", "redstone", "string", "egg", "sugar_cane",
+]
+_TEXTCRAFT_CRAFT_POOL = [
+    "plank", "stick", "torch", "furnace", "glass", "brick", "paper", "book",
+    "iron_ingot", "gold_ingot", "tool_rod", "pickaxe", "axe", "shovel", "sword",
+    "bucket", "shears", "compass", "clock", "cake", "bow", "arrow", "ladder",
+    "chest", "sign", "bowl", "bread", "cookie", "armor_plate", "gear",
+]
+
+
+def textcraft_task_rules() -> str:
+    return "\n".join(
+        [
+            "TEXTCRAFT HARD CONSTRAINTS:",
+            "- The task must be a CLOSED prerequisite recipe DAG.",
+            "- Every recipe ingredient must be either:",
+            "  (a) listed in constraints.base_items, or",
+            "  (b) itself a key in constraints.recipes.",
+            "- Do not invent dangling ingredients. Examples of invalid dangling leaves: water, mountain, hemp, rain, sky, cloud, sunlight, soil, fire, tree, copper_ore, mine, cow, grass unless you either put them in base_items or define them as recipes.",
+            "- Prefer using ONLY these base materials:",
+            "  " + ", ".join(_TEXTCRAFT_BASE_POOL),
+            "- Prefer using ONLY these craftable items as target/recipe keys:",
+            "  " + ", ".join(_TEXTCRAFT_CRAFT_POOL),
+            "- constraints.target must equal spec.target.",
+            "- constraints.recipes must equal spec.recipes.",
+            "- constraints.base_items must equal spec.base_items.",
+            "- constraints.subgoals must be the craftable dependency closure of target, in dependency-first order.",
+            "- spec.goal should be exactly: craft <target>.",
+            "- Return exactly one <task>{...}</task> block.",
+        ]
+    )
+
+
+def env_specific_task_rules(env_name: str) -> str:
+    if env_name == "textcraft":
+        return textcraft_task_rules()
+    return (
+        "Use the exact Task schema shown in the reference example. "
+        "The task must satisfy the environment's is_well_posed(task) contract."
+    )
+
+
+def _normalize_recipe_dict(rec: Any) -> Dict[str, List[str]]:
+    out: Dict[str, List[str]] = {}
+    if not isinstance(rec, dict):
+        return out
+    for k, v in rec.items():
+        key = str(k).strip()
+        if not key:
+            continue
+        if isinstance(v, list):
+            ings = [str(x).strip() for x in v if str(x).strip()]
+        else:
+            ings = [str(v).strip()] if str(v).strip() else []
+        out[key] = ings
+    return out
+
+
+def _textcraft_subgoals_of(target: str, recipes: Dict[str, List[str]]) -> List[str]:
+    order: List[str] = []
+    seen = set()
+
+    def visit(item: str, depth: int = 0):
+        if item in seen or item not in recipes or depth > 64:
+            return
+        seen.add(item)
+        for ing in recipes.get(item, []):
+            visit(ing, depth + 1)
+        order.append(item)
+
+    visit(target)
+    return order
+
+
+def normalize_task_for_env(env_name: str, task: Task) -> Task:
+    """Canonicalize model-generated Task objects before is_well_posed/probing.
+
+    For TextCraft, regenerate constraints.subgoals from target+recipes and keep
+    spec/constraints synchronized. This does NOT silently repair dangling leaves;
+    if an ingredient is neither base nor recipe key, TextCraftEnv.is_well_posed
+    should still reject it.
+    """
+    if env_name != "textcraft":
+        return task
+
+    spec = dict(getattr(task, "spec", {}) or {})
+    constraints = dict(getattr(task, "constraints", {}) or {})
+    info = dict(getattr(task, "info", {}) or {})
+
+    target = str(constraints.get("target") or spec.get("target") or "").strip()
+    recipes = _normalize_recipe_dict(constraints.get("recipes") or spec.get("recipes") or {})
+    base_items_raw = constraints.get("base_items") or spec.get("base_items") or []
+    if isinstance(base_items_raw, list):
+        base_items = sorted({str(x).strip() for x in base_items_raw if str(x).strip()})
+    else:
+        base_items = []
+
+    if target and recipes:
+        subgoals = _textcraft_subgoals_of(target, recipes)
+
+        spec["target"] = target
+        spec["recipes"] = recipes
+        spec["base_items"] = base_items
+        spec["goal"] = f"craft {target}"
+
+        constraints["target"] = target
+        constraints["recipes"] = recipes
+        constraints["base_items"] = base_items
+        constraints["subgoals"] = subgoals
+
+        info.setdefault("n_subgoals", len(subgoals))
+
+    task.spec = spec
+    task.constraints = constraints
+    task.info = info
+    return task
+
+
 def json_dumps_compact(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
 
@@ -200,7 +321,11 @@ def build_challenger_messages(
             "REFERENCE TASK JSON SCHEMA/EXAMPLE:",
             json.dumps(reference_task, ensure_ascii=False, indent=2),
             "",
+            "ENV-SPECIFIC HARD CONSTRAINTS:",
+            env_specific_task_rules(args.env),
+            "",
             "Generate a fresh task in the same schema family.",
+            "Do not copy the reference task verbatim; change the target and recipe graph when the environment permits.",
             "The task must be solvable, verifiable, and useful for training.",
             "Return exactly:",
             "<task>{...valid Task JSON...}</task>",
@@ -213,6 +338,54 @@ def build_challenger_messages(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+
+
+
+def with_sample_diversity_hint(
+    messages: List[Dict[str, str]],
+    env_name: str,
+    prompt_index: int,
+    sample_index: int,
+    reference_task: Dict[str, Any],
+) -> List[Dict[str, str]]:
+    """Return a per-sample prompt variant to reduce challenger mode collapse.
+
+    The reference task teaches schema. This hint discourages copying it verbatim
+    across all samples in the same GRPO group.
+    """
+    out = [dict(m) for m in messages]
+
+    hint_lines = [
+        f"SAMPLE_INDEX: {sample_index}",
+        "DIVERSITY REQUIREMENT:",
+        "- Do not copy the reference task verbatim.",
+        "- Generate a different task instance from other samples in this prompt group.",
+        "- Keep the task machine-checkable and well-posed.",
+    ]
+
+    if env_name == "textcraft":
+        ref_cons = (reference_task.get("constraints") or {}) if isinstance(reference_task, dict) else {}
+        ref_target = str(ref_cons.get("target") or "").strip()
+
+        idx = (int(prompt_index) * 11 + int(sample_index) * 7) % len(_TEXTCRAFT_CRAFT_POOL)
+        preferred = _TEXTCRAFT_CRAFT_POOL[idx]
+        if preferred == ref_target and len(_TEXTCRAFT_CRAFT_POOL) > 1:
+            preferred = _TEXTCRAFT_CRAFT_POOL[(idx + 1) % len(_TEXTCRAFT_CRAFT_POOL)]
+
+        hint_lines.extend(
+            [
+                f"- Preferred TextCraft target for this sample: {preferred}",
+                f"- Reference target to avoid copying if possible: {ref_target or '(none)'}",
+                "- Use the preferred target as constraints.target and spec.target when possible.",
+                "- Build a closed recipe DAG for that target.",
+                "- Every ingredient must be either in constraints.base_items or a key in constraints.recipes.",
+            ]
+        )
+
+    if out:
+        out[-1]["content"] = out[-1].get("content", "") + "\n\n" + "\n".join(hint_lines)
+
+    return out
 
 
 def messages_to_prompt(messages: List[Dict[str, str]]) -> str:
@@ -601,22 +774,32 @@ def main(argv: Optional[List[str]] = None) -> None:
     bad_reasons: Dict[str, int] = {}
 
     for prompt_index in range(max(1, int(args.num_prompts))):
-        messages = build_challenger_messages(
+        base_messages = build_challenger_messages(
             env=env,
             args=args,
             prompt_index=prompt_index,
             reference_task=reference_task,
         )
-        prompt = messages_to_prompt(messages)
         uid = f"{args.env}_{args.route}_challenger_prompt_{prompt_index:05d}"
 
         for sample_index in range(max(1, int(args.samples_per_prompt))):
+            messages = with_sample_diversity_hint(
+                base_messages,
+                env_name=args.env,
+                prompt_index=prompt_index,
+                sample_index=sample_index,
+                reference_task=reference_task,
+            )
+            prompt = messages_to_prompt(messages)
             completion = challenger_policy.act(messages)
             n_candidates += 1
 
             format_ok, task, task_obj, parse_reason = parse_task_completion(completion)
             if format_ok:
                 n_format_ok += 1
+                if task is not None:
+                    task = normalize_task_for_env(args.env, task)
+                    task_obj = task_to_dict(task)
             else:
                 bad_reasons[parse_reason] = bad_reasons.get(parse_reason, 0) + 1
 

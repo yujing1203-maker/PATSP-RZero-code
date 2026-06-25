@@ -310,6 +310,7 @@ class VLLMPolicy(Policy):
         top_p: float = 0.95,
         gpu_memory_utilization: float = 0.85,
         enable_lora: bool = True,
+        cuda_visible_devices: Optional[str] = None,
     ):
         if role not in self.ROLE_INT_IDS:
             raise ValueError(f"role must be one of {list(self.ROLE_INT_IDS)}, got {role!r}")
@@ -318,6 +319,54 @@ class VLLMPolicy(Policy):
         self.max_tokens = int(max_tokens)
         self.temperature = float(temperature)
         self.top_p = float(top_p)
+
+        # PATSP-only role-aware GPU binding must happen before importing/initializing vLLM.
+        #
+        # This is intentionally PATSP-specific. R-Zero uses a monolithic solver and
+        # must not share PATSP planner/executor GPU-control environment variables.
+        #
+        # For PATSP full-param multi-round, planner/executor may be two different
+        # full checkpoints. Bind each role's vLLM engine through:
+        #
+        #   PATSP_PLANNER_CUDA_VISIBLE_DEVICES=0
+        #   PATSP_EXECUTOR_CUDA_VISIBLE_DEVICES=1
+        #
+        # Values are arbitrary CUDA_VISIBLE_DEVICES strings, e.g.:
+        #   PATSP_PLANNER_CUDA_VISIBLE_DEVICES=2
+        #   PATSP_EXECUTOR_CUDA_VISIBLE_DEVICES=3
+        #
+        # The optional constructor argument wins over the PATSP environment variable.
+        import os as _os, sys as _sys
+
+        _requested_cvd = cuda_visible_devices
+        _requested_cvd_source = "constructor" if _requested_cvd not in (None, "") else None
+
+        if _requested_cvd is None or str(_requested_cvd).strip() == "":
+            _requested_cvd = None
+            _requested_cvd_source = None
+            if role in {"planner", "executor"}:
+                _role_env_key = f"PATSP_{role.upper()}_CUDA_VISIBLE_DEVICES"
+                _value = _os.environ.get(_role_env_key)
+                if _value is not None and str(_value).strip() != "":
+                    _requested_cvd = _value
+                    _requested_cvd_source = _role_env_key
+
+        if _requested_cvd is not None and str(_requested_cvd).strip() == "":
+            _requested_cvd = None
+            _requested_cvd_source = None
+
+        _old_cvd = _os.environ.get("CUDA_VISIBLE_DEVICES")
+        _bound_cvd_for_new_engine = False
+
+        if llm is None and _requested_cvd is not None:
+            _os.environ["CUDA_VISIBLE_DEVICES"] = str(_requested_cvd)
+            _bound_cvd_for_new_engine = True
+            print(
+                f"[VLLMPolicy] role={role} pre-import binding CUDA_VISIBLE_DEVICES={_requested_cvd} "
+                f"via {_requested_cvd_source} for model={model}",
+                file=_sys.stderr,
+                flush=True,
+            )
 
         # Lazy import: keep module import torch/vllm-free for the dry-run path.
         from vllm import LLM, SamplingParams  # noqa: F401  (vllm only here)
@@ -337,40 +386,49 @@ class VLLMPolicy(Policy):
             # bursty neighbor jobs cause transient vLLM memory-profiling failures
             # ("No available memory for the cache blocks" / profiling assertion /
             # warmup OOM); retrying after a short delay lands in a quieter window.
-            import os as _os, time as _time, sys as _sys, gc as _gc
-            _retries = max(1, int(_os.environ.get("RZERO_VLLM_INIT_RETRIES", "6")))
-            _delay = float(_os.environ.get("RZERO_VLLM_INIT_RETRY_DELAY", "25"))
-            _err = None
-            for _i in range(_retries):
-                try:
-                    self.llm = LLM(
-                        model=model,
-                        enable_lora=enable_lora,  # full-param engines load a whole checkpoint; no adapter
-                        tensor_parallel_size=int(_os.environ.get("RZERO_VLLM_TP", "1")),  # dual-card TP via RZERO_VLLM_TP
-                        trust_remote_code=True,
-                        gpu_memory_utilization=gpu_memory_utilization,
-                        max_model_len=int(_os.environ.get("RZERO_STAGE_MAX_MODEL_LEN", "2048")),
-                        max_num_seqs=int(_os.environ.get("RZERO_VLLM_MAX_NUM_SEQS", "16")),
-                        enforce_eager=_os.environ.get("RZERO_VLLM_ENFORCE_EAGER", "1") == "1",
-                    )
-                    _err = None
-                    break
-                except Exception as _e:  # transient shared-GPU contention at init
-                    _err = _e
-                    print(
-                        f"[VLLMPolicy] vLLM engine init attempt {_i + 1}/{_retries} failed "
-                        f"({type(_e).__name__}: {_e}); shared-GPU contention, retrying in {_delay}s.",
-                        file=_sys.stderr, flush=True,
-                    )
-                    _gc.collect()
+            import time as _time, gc as _gc
+            try:
+                _retries = max(1, int(_os.environ.get("RZERO_VLLM_INIT_RETRIES", "6")))
+                _delay = float(_os.environ.get("RZERO_VLLM_INIT_RETRY_DELAY", "25"))
+                _err = None
+                for _i in range(_retries):
                     try:
-                        import torch as _torch
-                        _torch.cuda.empty_cache()
-                    except Exception:
-                        pass
-                    _time.sleep(_delay)
-            if _err is not None:
-                raise _err
+                        self.llm = LLM(
+                            model=model,
+                            enable_lora=enable_lora,  # full-param engines load a whole checkpoint; no adapter
+                            tensor_parallel_size=int(_os.environ.get("RZERO_VLLM_TP", "1")),  # dual-card TP via RZERO_VLLM_TP
+                            trust_remote_code=True,
+                            gpu_memory_utilization=gpu_memory_utilization,
+                            max_model_len=int(_os.environ.get("RZERO_STAGE_MAX_MODEL_LEN", "2048")),
+                            max_num_seqs=int(_os.environ.get("RZERO_VLLM_MAX_NUM_SEQS", "16")),
+                            enforce_eager=_os.environ.get("RZERO_VLLM_ENFORCE_EAGER", "1") == "1",
+                        )
+                        _err = None
+                        break
+                    except Exception as _e:  # transient shared-GPU contention at init
+                        _err = _e
+                        print(
+                            f"[VLLMPolicy] vLLM engine init attempt {_i + 1}/{_retries} failed "
+                            f"({type(_e).__name__}: {_e}); shared-GPU contention, retrying in {_delay}s.",
+                            file=_sys.stderr,
+                            flush=True,
+                        )
+                        _gc.collect()
+                        try:
+                            import torch as _torch
+                            _torch.cuda.empty_cache()
+                        except Exception:
+                            pass
+                        _time.sleep(_delay)
+                if _err is not None:
+                    raise _err
+            finally:
+                if _bound_cvd_for_new_engine:
+                    if _old_cvd is None:
+                        _os.environ.pop("CUDA_VISIBLE_DEVICES", None)
+                    else:
+                        _os.environ["CUDA_VISIBLE_DEVICES"] = _old_cvd
+
 
         # Tokenizer for chat templating; reuse the LLM's if not supplied.
         if tokenizer is not None:
