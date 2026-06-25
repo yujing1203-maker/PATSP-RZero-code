@@ -91,3 +91,6 @@ huggingface/
 third_party/HeroBench/results/
 third_party/HeroBench/A1_Agent/results/
 third_party/HeroBench/A2_Agent/results/
+
+# HeroBench local runtime DB artifacts
+third_party/HeroBench/Virtual_Environment/FastApi_SQLite_Ver/artifact_*.db
